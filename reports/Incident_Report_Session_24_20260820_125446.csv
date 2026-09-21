@@ -1,0 +1,14 @@
+CROWD STAMPEDE PREDICTION SYSTEM - INCIDENT REPORT
+Session ID,24
+Source,video (normal2_2.mp4)
+Start Time,2026-08-20 12:52:50.030585
+Peak People Count,0
+Maximum Risk Level,GREEN
+Maximum Risk Score,0.0
+Duration (seconds),0.0
+
+--- DETECTED EVENTS ---
+Event Type,Confidence,Timestamp,Description
+
+--- ALERTS TRIGGERED ---
+Alert Type,Severity,Risk Level,Timestamp,Message

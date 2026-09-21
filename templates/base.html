@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Crowd Stampede Prediction System{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<div class="app-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-logo">🚨</span>
+            <div>
+                <div class="sidebar-title">Crowd Stampede AI</div>
+                <small class="text-muted" style="font-size: 11px;">Real-Time Surveillance</small>
+            </div>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{{ url_for('dashboard.dashboard_home') }}" class="{% if request.endpoint == 'dashboard.dashboard_home' %}active{% endif %}">
+                    <span>📊</span> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('detection.upload_video') }}" class="{% if request.endpoint == 'detection.upload_video' %}active{% endif %}">
+                    <span>📹</span> Upload Video
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('detection.upload_image') }}" class="{% if request.endpoint == 'detection.upload_image' %}active{% endif %}">
+                    <span>🖼</span> Upload Image
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('detection.webcam_page') }}" class="{% if request.endpoint == 'detection.webcam_page' %}active{% endif %}">
+                    <span>💻</span> Live Webcam
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('detection.cctv_page') }}" class="{% if request.endpoint == 'detection.cctv_page' %}active{% endif %}">
+                    <span>📡</span> CCTV Stream
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('detection.mobile_cam_page') }}" class="{% if request.endpoint == 'detection.mobile_cam_page' %}active{% endif %}">
+                    <span>📱</span> DroidCam / Mobile
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('history.history_home') }}" class="{% if request.endpoint == 'history.history_home' %}active{% endif %}">
+                    <span>📜</span> Detection History
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('model_perf.performance_page') }}" class="{% if request.endpoint == 'model_perf.performance_page' %}active{% endif %}">
+                    <span>🔬</span> Model Performance
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('architecture.architecture_page') }}" class="{% if request.endpoint == 'architecture.architecture_page' %}active{% endif %}">
+                    <span>⚙</span> System Architecture
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="d-flex align-items-center justify-content-between">
+                <a href="{{ url_for('profile.profile_page') }}" class="text-white text-decoration-none d-flex align-items-center gap-2">
+                    <span>👤</span>
+                    <span style="font-size: 13px;">{{ current_user.full_name.split()[0] if current_user.is_authenticated else 'User' }}</span>
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-danger" title="Logout">
+                    🚪
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Navbar -->
+        <header class="top-navbar">
+            <div class="d-flex align-items-center gap-3">
+                <h5 class="mb-0 fw-bold text-primary">{% block page_title %}Surveillance Monitoring{% endblock %}</h5>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-muted" style="font-size: 13px;">Welcome, <strong>{{ current_user.full_name if current_user.is_authenticated else 'Guest' }}</strong></span>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-danger">Logout</a>
+            </div>
+        </header>
+
+        <!-- Body Area -->
+        <div class="content-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Auto-dismiss alerts after 6 seconds
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(a) {
+            try {
+                bootstrap.Alert.getOrCreateInstance(a).close();
+            } catch(e){}
+        });
+    }, 6000);
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

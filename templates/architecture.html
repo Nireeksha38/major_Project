@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}System Architecture - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}End-to-End System Architecture{% endblock %}
+
+{% block content %}
+<div class="dash-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="fw-bold mb-1">📐 Multi-Stage AI/ML Surveillance Pipeline</h5>
+            <small class="text-muted">Visual breakdown of how computer vision, object tracking, entropy analysis, and risk scoring unite.</small>
+        </div>
+        <span class="badge bg-primary px-3 py-2">10-Stage Pipeline</span>
+    </div>
+
+    <!-- Visual Architecture Grid -->
+    <div class="row g-3 text-center my-3">
+        <!-- Node 1: Input -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100">
+                <div class="pipeline-node-icon">📹</div>
+                <div class="pipeline-node-title">1. Multi-Source Input</div>
+                <div class="pipeline-node-desc">Uploaded Video, Image, Webcam, or RTSP CCTV stream</div>
+            </div>
+        </div>
+
+        <!-- Node 2: YOLOv8 -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100 border-primary">
+                <div class="pipeline-node-icon">🔍</div>
+                <div class="pipeline-node-title">2. YOLOv8 Nano</div>
+                <div class="pipeline-node-desc">Extracts raw person bounding boxes (Class 0) on CPU/GPU</div>
+            </div>
+        </div>
+
+        <!-- Node 3: Soft-NMS -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100 border-success">
+                <div class="pipeline-node-icon">🛡</div>
+                <div class="pipeline-node-title">3. Soft-NMS</div>
+                <div class="pipeline-node-desc">Decays overlapping confidences; prevents dense crowd suppression</div>
+            </div>
+        </div>
+
+        <!-- Node 4: Deep SORT -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100 border-info">
+                <div class="pipeline-node-icon">🎯</div>
+                <div class="pipeline-node-title">4. Deep SORT</div>
+                <div class="pipeline-node-desc">Kalman Filter & Hungarian tracking assigns persistent IDs</div>
+            </div>
+        </div>
+
+        <!-- Node 5: Optical Flow -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100">
+                <div class="pipeline-node-icon">🌊</div>
+                <div class="pipeline-node-title">5. Farneback Flow</div>
+                <div class="pipeline-node-desc">Calculates dense motion vectors, magnitude, and velocity fields</div>
+            </div>
+        </div>
+
+        <!-- Node 6: Motion Entropy -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100 border-warning">
+                <div class="pipeline-node-icon">🌀</div>
+                <div class="pipeline-node-title">6. Motion Entropy</div>
+                <div class="pipeline-node-desc">8-bin directional Shannon entropy measures crowd disorder [0-1]</div>
+            </div>
+        </div>
+
+        <!-- Node 7: Crowd Speed -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100">
+                <div class="pipeline-node-icon">⚡</div>
+                <div class="pipeline-node-title">7. Crowd Velocity</div>
+                <div class="pipeline-node-desc">Normalized trajectory displacement speed and acceleration surge</div>
+            </div>
+        </div>
+
+        <!-- Node 8: Fall & Panic -->
+        <div class="col-md-3 col-6">
+            <div class="pipeline-node h-100 border-danger">
+                <div class="pipeline-node-icon">⚠</div>
+                <div class="pipeline-node-title">8. Fall & Panic Det.</div>
+                <div class="pipeline-node-desc">Aspect ratio transitions + temporal multi-frame rush verification</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Risk Classifier Node -->
+    <div class="p-4 rounded-3 text-center my-3" style="background: linear-gradient(135deg, #0f172a, #1e40af); color: #fff;">
+        <h5 class="fw-bold mb-2">9. Multi-Factor Risk Assessment Engine</h5>
+        <code class="d-inline-block px-3 py-2 rounded mb-3 bg-dark text-warning" style="font-size: 14px;">
+            Risk = 0.20·Density + 0.20·Speed + 0.20·Motion + 0.15·Entropy + 0.10·Panic + 0.15·Fall
+        </code>
+        <div class="row justify-content-center g-3 mt-1">
+            <div class="col-md-3">
+                <div class="p-2 rounded bg-success text-white fw-bold">🟢 GREEN: 0.00 – 0.39<br><small class="fw-normal">Normal Flow</small></div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-2 rounded bg-warning text-dark fw-bold">🟡 YELLOW: 0.40 – 0.69<br><small class="fw-normal">Warning / Rush Surge</small></div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-2 rounded bg-danger text-white fw-bold">🔴 RED: 0.70 – 1.00<br><small class="fw-normal">Critical Stampede / Fall</small></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Scientific Distinction -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="dash-card h-100">
+            <h5 class="fw-bold mb-3">🔬 Scientific Role of Key Modules</h5>
+            <ul class="list-group list-group-flush" style="font-size: 13px;">
+                <li class="list-group-item px-0">
+                    <strong>YOLOv8:</strong> Fast spatial person detection in each video frame.
+                </li>
+                <li class="list-group-item px-0">
+                    <strong>Soft-NMS:</strong> Prevents false person dropouts in overlapping dense crowds.
+                </li>
+                <li class="list-group-item px-0">
+                    <strong>Deep SORT:</strong> Links detections across time into continuous person trajectories.
+                </li>
+                <li class="list-group-item px-0">
+                    <strong>Optical Flow:</strong> Captures sub-pixel motion intensity between consecutive frames.
+                </li>
+                <li class="list-group-item px-0">
+                    <strong>Motion Entropy:</strong> Mathematical disorder index. Unidirectional flow = low entropy; stampede scattering = high entropy.
+                </li>
+                <li class="list-group-item px-0">
+                    <strong>Fall Detection:</strong> Analyzes rapid aspect ratio transformations ($w/h > 1.15$) and downward velocity drops.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="dash-card h-100">
+            <h5 class="fw-bold mb-3">📋 Limitations & Real-World Considerations</h5>
+            <ul class="list-group list-group-flush text-muted" style="font-size: 13px;">
+                <li class="list-group-item px-0">
+                    📌 <strong>Camera Calibration:</strong> Physical people/m² and km/h require scene perspective homography calibration. Normalized units $[0.0, 1.0]$ are utilized without homography.
+                </li>
+                <li class="list-group-item px-0">
+                    📌 <strong>Camera Angle:</strong> Steep top-down camera views yield the highest tracking accuracy with minimal occlusion.
+                </li>
+                <li class="list-group-item px-0">
+                    📌 <strong>Illumination:</strong> Night scenes with poor lighting may require infrared sensors or fine-tuning on low-light datasets.
+                </li>
+                <li class="list-group-item px-0">
+                    📌 <strong>Temporal Window:</strong> Panic detection observes temporal persistence across 15 frames to prevent single-frame false triggers.
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

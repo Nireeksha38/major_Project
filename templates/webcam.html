@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+
+{% block title %}Live Webcam Surveillance - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Real-Time Camera Surveillance (Browser & Hardware Webcams){% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Stream Column -->
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <!-- Mode Switcher Nav & Controls -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <ul class="nav nav-pills nav-fill p-1 bg-light rounded border" id="cameraModeTabs" role="tablist" style="font-size: 13px;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active py-1 px-3 fw-bold" id="browser-tab" data-bs-toggle="pill" data-bs-target="#browser-mode" type="button" role="tab" onclick="switchSurveillanceMode('browser')">
+                                🌐 Browser WebCam <span class="badge bg-success ms-1" style="font-size: 10px;">Recommended</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-1 px-3 fw-bold" id="backend-tab" data-bs-toggle="pill" data-bs-target="#backend-mode" type="button" role="tab" onclick="switchSurveillanceMode('backend')">
+                                💻 Backend OpenCV Feed
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Stream Status Badge -->
+                <div class="d-flex align-items-center gap-2">
+                    <span id="stream_badge" class="badge bg-secondary">
+                        ⏸️ STREAM IDLE
+                    </span>
+                    <span id="fps_badge" class="badge bg-dark text-light border" style="font-family: monospace; font-size: 11px;">
+                        0 FPS
+                    </span>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="cameraModeTabContent">
+                
+                <!-- ================= BROWSER WEBCAM MODE (HTML5 / WebRTC) ================= -->
+                <div class="tab-pane fade show active" id="browser-mode" role="tabpanel">
+                    <!-- Browser Controls Bar -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 bg-light rounded border">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 260px;">
+                            <label for="browser_camera_select" class="form-label mb-0 fw-semibold text-muted" style="font-size: 12px; white-space: nowrap;">
+                                Camera Device:
+                            </label>
+                            <select id="browser_camera_select" class="form-select form-select-sm" style="font-weight: 500;" onchange="onBrowserCameraSelectChange(this.value)">
+                                <option value="">⏳ Detecting cameras...</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            <button id="btn_start_browser" class="btn btn-sm btn-success fw-semibold" onclick="startBrowserWebcam()">
+                                ▶️ Start Camera
+                            </button>
+                            <button id="btn_stop_browser" class="btn btn-sm btn-outline-danger fw-semibold" onclick="stopBrowserWebcam()" disabled>
+                                ⏹️ Stop
+                            </button>
+                            <button id="btn_snapshot_browser" class="btn btn-sm btn-outline-secondary" onclick="takeSnapshot()" title="Save Current Frame Snapshot" disabled>
+                                📷 Snapshot
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Video Viewport -->
+                    <div class="video-surveillance-box mb-3" style="position: relative; background: #0d1117; border-radius: 10px; overflow: hidden; min-height: 420px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                        
+                        <!-- Real-Time AI Annotated Canvas Output -->
+                        <canvas id="browser_output_canvas" style="width: 100%; height: auto; max-height: 520px; display: none; object-fit: contain; border-radius: 8px;"></canvas>
+                        
+                        <!-- Offscreen Raw Camera Video Stream Element -->
+                        <video id="browser_raw_video" autoplay playsinline muted style="display: none;"></video>
+                        <!-- Offscreen Frame Sampling Canvas -->
+                        <canvas id="browser_sampling_canvas" style="display: none;"></canvas>
+
+                        <!-- Idle / Standby Screen Overlay -->
+                        <div id="browser_idle_overlay" class="text-center p-4 text-light">
+                            <div style="font-size: 48px;" class="mb-2">📷</div>
+                            <h5 class="fw-bold text-light mb-2">Direct In-Browser Camera Surveillance</h5>
+                            <p class="text-muted small mb-3" style="max-width: 480px; margin: 0 auto;">
+                                Uses your browser's direct camera permissions. Works seamlessly on all laptops and USB cameras with real-time AI crowd analytics.
+                            </p>
+                            <button class="btn btn-primary btn-sm px-4 py-2 fw-semibold" onclick="startBrowserWebcam()">
+                                🚀 Launch Camera Stream
+                            </button>
+                        </div>
+
+                        <!-- Processing Indicator Overlay -->
+                        <div id="browser_loading_overlay" style="display: none; position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+                            <span class="spinner-grow spinner-grow-sm text-info me-1" style="width: 8px; height: 8px;"></span> AI Inference Active
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <small class="text-muted">
+                            AI Pipeline: <strong>YOLOv8 ➔ Soft-NMS ➔ Deep SORT ➔ Optical Flow ➔ Risk Engine</strong>
+                        </small>
+                        <span class="badge bg-light text-dark border" id="browser_active_label">
+                            Mode: In-Browser WebRTC Capture
+                        </span>
+                    </div>
+                </div>
+
+                <!-- ================= BACKEND OPENCV HARDWARE MODE ================= -->
+                <div class="tab-pane fade" id="backend-mode" role="tabpanel">
+                    <!-- Backend Controls Bar -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 bg-light rounded border">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 260px;">
+                            <label for="backend_camera_select" class="form-label mb-0 fw-semibold text-muted" style="font-size: 12px; white-space: nowrap;">
+                                Hardware Source:
+                            </label>
+                            <select id="backend_camera_select" class="form-select form-select-sm" style="font-weight: 500;" onchange="changeBackendCamera(this.value)">
+                                {% if cameras %}
+                                    {% for cam in cameras %}
+                                        <option value="{{ cam.index }}" {% if cam.index == selected_index %}selected{% endif %}>
+                                            {{ cam.label }}
+                                        </option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="0" {% if selected_index == 0 %}selected{% endif %}>💻 Camera 0: Primary / Laptop Webcam</option>
+                                    <option value="1" {% if selected_index == 1 %}selected{% endif %}>📷 Camera 1: External USB Webcam</option>
+                                    <option value="2" {% if selected_index == 2 %}selected{% endif %}>📹 Camera 2: Secondary Device</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            <button class="btn btn-sm btn-outline-primary" onclick="rescanBackendDevices()" title="Scan for newly connected cameras">
+                                🔍 Scan
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="reloadBackendStream()" title="Refresh hardware stream">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hardware Video Surveillance Box -->
+                    <div class="video-surveillance-box mb-3" style="position: relative; background: #000; border-radius: 10px; overflow: hidden; min-height: 420px; display: flex; align-items: center; justify-content: center;">
+                        <img id="backend_webcam_stream" 
+                             src="" 
+                             alt="Backend OpenCV Live Feed" 
+                             style="width: 100%; height: auto; max-height: 520px; display: block; border-radius: 8px;">
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <small class="text-muted">
+                            Backend Pipeline: <strong>OpenCV DirectShow ➔ YOLOv8 ➔ Real-Time Risk Engine</strong>
+                        </small>
+                        <span class="badge bg-light text-dark border" id="backend_active_label">
+                            Hardware Index: {{ selected_index }}
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Camera Troubleshooting & Help Guide -->
+        <div class="dash-card mt-3">
+            <div class="d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#cameraTroubleshootCollapse" aria-expanded="true">
+                <h6 class="fw-bold mb-0 text-primary">
+                    🛠️ Camera Troubleshooting & Privacy Permissions Guide
+                </h6>
+                <span class="text-muted small">Click to toggle tips ▼</span>
+            </div>
+
+            <div class="collapse show mt-3" id="cameraTroubleshootCollapse">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">1. Browser Camera Permission (Top Recommended)</div>
+                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
+                                When clicking <strong>Start Camera</strong> in Browser WebCam mode:
+                            </p>
+                            <ul class="text-muted mb-0 ps-3" style="font-size: 12px;">
+                                <li>Click <strong>"Allow"</strong> when the browser prompts for camera access.</li>
+                                <li>If blocked, click the 🔒 / 📷 icon in your browser URL bar and set Camera to <strong>Allow</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">2. Background App Conflicts (Teams, Zoom, Meet)</div>
+                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
+                                Webcams can only be accessed by one application at a time:
+                            </p>
+                            <ul class="text-muted mb-0 ps-3" style="font-size: 12px;">
+                                <li>Close <strong>Microsoft Teams</strong>, <strong>Zoom</strong>, <strong>Discord</strong>, or <strong>OBS</strong>.</li>
+                                <li>Close any other browser tabs using the webcam.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">3. Windows 10/11 Privacy Settings</div>
+                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
+                                To enable system-wide camera access:
+                            </p>
+                            <ol class="text-muted mb-0 ps-3" style="font-size: 12px;">
+                                <li>Press <code>Win + I</code> ➔ <strong>Privacy & Security ➔ Camera</strong>.</li>
+                                <li>Turn <strong>Camera Access</strong> <span class="badge bg-success">ON</span>.</li>
+                                <li>Ensure <strong>"Let desktop apps access your camera"</strong> is <span class="badge bg-success">ON</span>.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">4. Multi-Camera & Physical Privacy Slider</div>
+                            <p class="text-muted mb-0" style="font-size: 12px; line-height: 1.5;">
+                                Check if your laptop has a sliding camera privacy cover or a mute key (like <code>Fn + F10</code>). You can switch between your laptop built-in camera and external USB camera using the dropdown.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Telemetry Side Panel -->
+    <div class="col-lg-4">
+        <div class="dash-card">
+            <h5 class="fw-bold mb-3">⚡ Live AI Telemetry</h5>
+
+            <div class="mb-3">
+                <div class="card-lbl">Risk Classification</div>
+                <div class="mt-1" id="live_risk_badge">
+                    <span class="badge-risk risk-green">🟢 NORMAL (SAFE)</span>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-primary" id="live_people">0</div>
+                        <div class="card-lbl">People Count</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-danger" id="live_risk_score">0.00</div>
+                        <div class="card-lbl">Risk Score</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-info" id="live_speed">0.00</div>
+                        <div class="card-lbl">Rel. Speed</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-warning" id="live_entropy">0.00</div>
+                        <div class="card-lbl">Entropy</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 border rounded bg-light mb-3">
+                <div class="card-lbl mb-1">Live Status Message</div>
+                <div class="fw-semibold text-dark" id="live_summary" style="font-size: 13px;">Waiting for camera stream...</div>
+            </div>
+
+            <div class="p-3 border rounded bg-light mb-3">
+                <div class="card-lbl mb-2">Real-Time Performance</div>
+                <div class="d-flex justify-content-between text-muted" style="font-size: 12px;">
+                    <span>Processing Latency:</span>
+                    <strong id="live_latency" class="text-dark">0 ms</strong>
+                </div>
+                <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 12px;">
+                    <span>Processed Frames:</span>
+                    <strong id="live_frame_count" class="text-dark">0</strong>
+                </div>
+            </div>
+
+            <div class="alert alert-secondary py-2 mb-0" style="font-size: 11px;">
+                💡 <strong>Multi-Camera Detection:</strong> Automatically identifies built-in laptop webcams and USB cameras with real-time Soft-NMS tracking.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Surveillance State
+    let currentMode = "browser"; // "browser" or "backend"
+    let browserStream = null;
+    let isBrowserStreaming = false;
+    let isProcessingFrame = false;
+    let browserLoopTimer = null;
+    let backendPollTimer = null;
+    let frameCounter = 0;
+    let lastFpsTime = performance.now();
+    let currentFps = 0;
+    let highestFrameIdx = 0;
+    let backendCameraIndex = parseInt("{{ selected_index | default(0) }}", 10) || 0;
+
+    // DOM Elements
+    const rawVideo = document.getElementById('browser_raw_video');
+    const samplingCanvas = document.getElementById('browser_sampling_canvas');
+    const outputCanvas = document.getElementById('browser_output_canvas');
+    const idleOverlay = document.getElementById('browser_idle_overlay');
+    const loadingOverlay = document.getElementById('browser_loading_overlay');
+    const btnStart = document.getElementById('btn_start_browser');
+    const btnStop = document.getElementById('btn_stop_browser');
+    const btnSnapshot = document.getElementById('btn_snapshot_browser');
+    const streamBadge = document.getElementById('stream_badge');
+    const fpsBadge = document.getElementById('fps_badge');
+    const browserCameraSelect = document.getElementById('browser_camera_select');
+    const backendStreamImg = document.getElementById('backend_webcam_stream');
+
+    // ================= ENUMERATE BROWSER CAMERAS =================
+    async function enumerateBrowserCameras() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            browserCameraSelect.innerHTML = '<option value="">Camera API not supported in browser</option>';
+            return;
+        }
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            browserCameraSelect.innerHTML = '';
+            if (videoDevices.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "Default Camera";
+                browserCameraSelect.appendChild(opt);
+            } else {
+                videoDevices.forEach((device, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = device.deviceId;
+                    let label = device.label || `Camera ${idx + 1}`;
+                    if (label.toLowerCase().includes('hp') || label.toLowerCase().includes('integrated') || label.toLowerCase().includes('built-in')) {
+                        opt.textContent = `💻 ${label} (Built-in)`;
+                    } else if (label.toLowerCase().includes('ivoomi') || label.toLowerCase().includes('usb')) {
+                        opt.textContent = `📷 ${label} (External USB)`;
+                    } else {
+                        opt.textContent = `📹 ${label}`;
+                    }
+                    browserCameraSelect.appendChild(opt);
+                });
+            }
+        } catch (err) {
+            console.error("Error enumerating video devices:", err);
+            browserCameraSelect.innerHTML = '<option value="">Default System Camera</option>';
+        }
+    }
+
+    // ================= SWITCH SURVEILLANCE MODE =================
+    function switchSurveillanceMode(mode) {
+        currentMode = mode;
+        if (mode === 'browser') {
+            // Stop backend feed image & polling
+            backendStreamImg.src = "";
+            if (backendPollTimer) {
+                clearInterval(backendPollTimer);
+                backendPollTimer = null;
+            }
+            if (!isBrowserStreaming) {
+                setStreamBadge(false, "STREAM IDLE");
+            } else {
+                setStreamBadge(true, "● LIVE BROWSER STREAM");
+            }
+        } else if (mode === 'backend') {
+            // Stop browser webcam
+            if (isBrowserStreaming) {
+                stopBrowserWebcam();
+            }
+            startBackendStream();
+        }
+    }
+
+    // ================= BROWSER WEBCAM STREAMING =================
+    async function startBrowserWebcam() {
+        if (isBrowserStreaming) return;
+
+        try {
+            const selectedDeviceId = browserCameraSelect.value;
+            const constraints = {
+                video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
+                                        : { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+                audio: false
+            };
+
+            browserStream = await navigator.mediaDevices.getUserMedia(constraints);
+            rawVideo.srcObject = browserStream;
+            await rawVideo.play();
+
+            // Refresh device list after permission granted so device labels appear
+            await enumerateBrowserCameras();
+
+            isBrowserStreaming = true;
+            highestFrameIdx = 0;
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnSnapshot.disabled = false;
+            idleOverlay.style.display = 'none';
+            outputCanvas.style.display = 'block';
+            setStreamBadge(true, "● LIVE BROWSER STREAM");
+
+            // Reset backend state
+            fetch("{{ url_for('detection.webcam_reset') }}", { method: 'POST' }).catch(() => {});
+
+            // Start Frame Capture Loop
+            captureAndProcessLoop();
+        } catch (err) {
+            console.error("Failed to access browser camera:", err);
+            alert("Could not access your camera: " + (err.message || err.name) + "\n\nPlease ensure you clicked 'Allow' when the browser prompted for Camera permission, and close other apps (Teams/Zoom) that might be using the camera.");
+            setStreamBadge(false, "PERMISSION DENIED / ERROR");
+        }
+    }
+
+    function stopBrowserWebcam() {
+        isBrowserStreaming = false;
+        if (browserLoopTimer) {
+            clearTimeout(browserLoopTimer);
+            browserLoopTimer = null;
+        }
+
+        if (browserStream) {
+            browserStream.getTracks().forEach(track => track.stop());
+            browserStream = null;
+        }
+        rawVideo.srcObject = null;
+
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+        btnSnapshot.disabled = true;
+        outputCanvas.style.display = 'none';
+        idleOverlay.style.display = 'block';
+        loadingOverlay.style.display = 'none';
+        setStreamBadge(false, "STREAM STOPPED");
+        fpsBadge.innerText = "0 FPS";
+    }
+
+    async function onBrowserCameraSelectChange(deviceId) {
+        if (isBrowserStreaming) {
+            stopBrowserWebcam();
+            setTimeout(startBrowserWebcam, 300);
+        }
+    }
+
+    // ================= FRAME CAPTURE & AI INFERENCE =================
+    async function captureAndProcessLoop() {
+        if (!isBrowserStreaming) return;
+
+        if (!isProcessingFrame && rawVideo.videoWidth > 0) {
+            isProcessingFrame = true;
+            loadingOverlay.style.display = 'block';
+
+            try {
+                // Set sampling canvas dimensions
+                const vw = rawVideo.videoWidth || 640;
+                const vh = rawVideo.videoHeight || 480;
+                samplingCanvas.width = 640;
+                samplingCanvas.height = Math.round((vh / vw) * 640);
+
+                const ctx = samplingCanvas.getContext('2d');
+                ctx.drawImage(rawVideo, 0, 0, samplingCanvas.width, samplingCanvas.height);
+
+                // Convert to JPEG Data URL
+                const frameDataUrl = samplingCanvas.toDataURL('image/jpeg', 0.72);
+
+                // Send frame to Flask Backend AI Pipeline
+                const response = await fetch("{{ url_for('detection.process_webcam_frame') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame: frameDataUrl })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.annotated_image) {
+                        if (result.frame_idx >= highestFrameIdx) {
+                            highestFrameIdx = result.frame_idx;
+                            renderAnnotatedImage(result.annotated_image);
+                            updateTelemetryUI(result.telemetry, result.latency_ms, result.frame_idx);
+                            updateFpsCounter();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Frame processing error:", err);
+            } finally {
+                isProcessingFrame = false;
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // Schedule next frame (~25 FPS pacing)
+        if (isBrowserStreaming) {
+            browserLoopTimer = setTimeout(captureAndProcessLoop, 35);
+        }
+    }
+
+    function renderAnnotatedImage(imgDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+            outputCanvas.width = img.width;
+            outputCanvas.height = img.height;
+            const ctx = outputCanvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = imgDataUrl;
+    }
+
+    function updateFpsCounter() {
+        frameCounter++;
+        const now = performance.now();
+        const elapsed = now - lastFpsTime;
+        if (elapsed >= 1000) {
+            currentFps = Math.round((frameCounter * 1000) / elapsed);
+            fpsBadge.innerText = `${currentFps} FPS`;
+            frameCounter = 0;
+            lastFpsTime = now;
+        }
+    }
+
+    function updateTelemetryUI(t, latencyMs, frameIdx) {
+        if (!t) return;
+        document.getElementById('live_people').innerText = t.people_count !== undefined ? t.people_count : 0;
+        document.getElementById('live_speed').innerText = Number(t.relative_speed || 0).toFixed(2);
+        document.getElementById('live_entropy').innerText = Number(t.motion_entropy || 0).toFixed(2);
+        document.getElementById('live_risk_score').innerText = Number(t.risk_score || 0).toFixed(2);
+        document.getElementById('live_summary').innerText = t.summary_message || "Monitoring live stream...";
+        
+        if (latencyMs !== undefined) {
+            document.getElementById('live_latency').innerText = `${latencyMs} ms`;
+        }
+        if (frameIdx !== undefined) {
+            document.getElementById('live_frame_count').innerText = `${frameIdx}`;
+        }
+
+        const badge = document.getElementById('live_risk_badge');
+        if (t.risk_level === 'RED') {
+            badge.innerHTML = '<span class="badge-risk risk-red">🔴 CRITICAL (PANIC)</span>';
+        } else if (t.risk_level === 'YELLOW') {
+            badge.innerHTML = '<span class="badge-risk risk-yellow">🟡 WARNING (RUSH)</span>';
+        } else {
+            badge.innerHTML = '<span class="badge-risk risk-green">🟢 NORMAL (SAFE)</span>';
+        }
+    }
+
+    function setStreamBadge(isLive, text) {
+        if (isLive) {
+            streamBadge.className = "badge bg-danger animate-pulse";
+            streamBadge.innerText = text;
+        } else {
+            streamBadge.className = "badge bg-secondary";
+            streamBadge.innerText = text;
+        }
+    }
+
+    function takeSnapshot() {
+        if (!outputCanvas) return;
+        const link = document.createElement('a');
+        link.download = `stampede-surveillance-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`;
+        link.href = outputCanvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+    }
+
+    // ================= BACKEND OPENCV STREAM CONTROLS =================
+    function startBackendStream() {
+        const feedUrl = "{{ url_for('detection.webcam_feed') }}?camera_index=" + backendCameraIndex + "&t=" + new Date().getTime();
+        backendStreamImg.src = feedUrl;
+        setStreamBadge(true, "● BACKEND HARDWARE STREAM");
+        const activeLabel = document.getElementById('backend_active_label');
+        if (activeLabel) {
+            activeLabel.innerText = "Hardware Index: " + backendCameraIndex;
+        }
+
+        // Start backend telemetry polling
+        if (backendPollTimer) clearInterval(backendPollTimer);
+        backendPollTimer = setInterval(() => {
+            if (currentMode === 'backend') {
+                fetch("{{ url_for('detection.webcam_telemetry') }}")
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data) updateTelemetryUI(data);
+                    })
+                    .catch(() => {});
+            }
+        }, 1200);
+    }
+
+    function changeBackendCamera(index) {
+        backendCameraIndex = parseInt(index);
+        startBackendStream();
+    }
+
+    function reloadBackendStream() {
+        startBackendStream();
+    }
+
+    function rescanBackendDevices() {
+        fetch("{{ url_for('detection.webcam_devices_api') }}")
+            .then(res => res.json())
+            .then(data => {
+                if (data.cameras && data.cameras.length > 0) {
+                    const select = document.getElementById('backend_camera_select');
+                    select.innerHTML = '';
+                    data.cameras.forEach(cam => {
+                        const opt = document.createElement('option');
+                        opt.value = cam.index;
+                        opt.textContent = cam.label;
+                        if (cam.index === backendCameraIndex) {
+                            opt.selected = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                }
+            })
+            .catch(err => console.error("Error scanning devices:", err));
+    }
+
+    // Auto-initialize camera device enumeration on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        enumerateBrowserCameras();
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (isBrowserStreaming) {
+            stopBrowserWebcam();
+        }
+        if (backendPollTimer) {
+            clearInterval(backendPollTimer);
+        }
+    });
+</script>
+{% endblock %}

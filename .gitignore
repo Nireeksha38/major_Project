@@ -1,0 +1,41 @@
+# Python & Virtual Environments
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables & Sensitive info
+.env
+
+# Database & SQLite
+*.db
+*.sqlite3
+instance/
+
+# Logs & Temporary outputs
+logs/
+*.log
+outputs/
+.pytest_cache/
+
+# Large Datasets and Extracted Media Frames
+ml/dataset/extracted_frames/
+ml/dataset/raw/
+ml/dataset/raw_images/
+ml/dataset/raw_labels/
+ml/dataset/yolo/
+
+# User Uploads and Run-time generated artifacts
+static/uploads/
+static/screenshots/
+videos/
+
+# IDE settings
+.vscode/
+.idea/
+
+# DLLs & temporary files
+openh264-*.dll
+*.tmp

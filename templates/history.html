@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Detection History - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Surveillance & Detection History{% endblock %}
+
+{% block content %}
+<div class="dash-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="fw-bold mb-1">📜 Detection Session Logs</h5>
+            <small class="text-muted">Review past surveillance recordings, peak crowd counts, and anomaly timestamps.</small>
+        </div>
+
+        <!-- Time Range Filters -->
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('history.history_home', filter='all') }}" class="btn btn-sm {% if filter_period == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">All Time</a>
+            <a href="{{ url_for('history.history_home', filter='today') }}" class="btn btn-sm {% if filter_period == 'today' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Today</a>
+            <a href="{{ url_for('history.history_home', filter='week') }}" class="btn btn-sm {% if filter_period == 'week' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This Week</a>
+            <a href="{{ url_for('history.history_home', filter='month') }}" class="btn btn-sm {% if filter_period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}">This Month</a>
+        </div>
+    </div>
+
+    {% if sessions %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" style="font-size: 13px;">
+                <thead class="table-light">
+                    <tr>
+                        <th>#ID</th>
+                        <th>Date & Time</th>
+                        <th>Source</th>
+                        <th>Peak People</th>
+                        <th>Peak Risk</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sessions %}
+                        <tr>
+                            <td class="fw-bold">#{{ s.id }}</td>
+                            <td>{{ s.start_time.strftime('%Y-%m-%d %H:%M:%S') if s.start_time else '' }}</td>
+                            <td>
+                                <span class="badge bg-secondary text-uppercase">{{ s.source_type }}</span>
+                                <span class="ms-1 fw-semibold">{{ s.source_name }}</span>
+                            </td>
+                            <td><strong class="text-primary">{{ s.maximum_people }}</strong></td>
+                            <td>
+                                {% if s.maximum_risk == 'GREEN' %}
+                                    <span class="badge bg-success">GREEN (NORMAL)</span>
+                                {% elif s.maximum_risk == 'YELLOW' %}
+                                    <span class="badge bg-warning text-dark">YELLOW (WARNING)</span>
+                                {% else %}
+                                    <span class="badge bg-danger">RED (CRITICAL)</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ s.duration }}s</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="viewSessionDetails('{{ s.id }}')">Details</button>
+                                <form method="POST" action="{{ url_for('history.delete_session', session_id=s.id) }}" class="d-inline" onsubmit="return confirm('Delete this session record?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <span style="font-size: 40px;">📭</span>
+            <h6 class="mt-2">No detection records found for the selected time filter.</h6>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Session Details Modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalSessionTitle">Session Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalSessionBody">
+                <div class="text-center py-3">Loading session telemetry...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewSessionDetails(sessionId) {
+    const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+    modal.show();
+
+    fetch(`/history/session/${sessionId}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('modalSessionTitle').innerText = `Session #${data.id} - ${data.source_name}`;
+            
+            let eventsHtml = '';
+            if (data.events && data.events.length > 0) {
+                eventsHtml = data.events.map(e => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center" style="font-size: 12px;">
+                        <span><strong>${e.type}</strong>: ${e.description}</span>
+                        <span class="badge bg-secondary">${e.timestamp}</span>
+                    </li>
+                `).join('');
+            } else {
+                eventsHtml = '<li class="list-group-item text-muted" style="font-size: 12px;">No discrete anomaly events logged.</li>';
+            }
+
+            document.getElementById('modalSessionBody').innerHTML = `
+                <div class="row g-3 mb-3">
+                    <div class="col-4">
+                        <div class="p-2 border rounded text-center bg-light">
+                            <div class="fw-bold text-primary" style="font-size: 20px;">${data.max_people}</div>
+                            <small class="text-muted">Peak People</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 border rounded text-center bg-light">
+                            <div class="fw-bold text-danger" style="font-size: 20px;">${data.max_risk}</div>
+                            <small class="text-muted">Peak Risk</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 border rounded text-center bg-light">
+                            <div class="fw-bold text-secondary" style="font-size: 20px;">${data.duration}s</div>
+                            <small class="text-muted">Duration</small>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mt-3">Anomalies & Events:</h6>
+                <ul class="list-group list-group-flush mb-3">${eventsHtml}</ul>
+            `;
+        })
+        .catch(err => {
+            document.getElementById('modalSessionBody').innerHTML = `<div class="alert alert-danger">Failed to load session details.</div>`;
+        });
+}
+</script>
+{% endblock %}

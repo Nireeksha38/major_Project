@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Image - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Static Image Crowd Density Analysis{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <!-- Image Upload / Display -->
+    <div class="col-lg-10 col-xl-9">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">🖼 Single Frame Image Crowd Detection</h5>
+                {% if result %}
+                    <span class="badge bg-success" style="font-size: 12px;">Analysis Complete</span>
+                {% endif %}
+            </div>
+
+            {% if result %}
+                <div class="text-center mb-3 p-2 bg-dark rounded border">
+                    <img src="{{ url_for('static', filename=result.processed_image_url) }}" class="img-fluid rounded" style="max-height: 540px; object-fit: contain;" alt="Analyzed Crowd">
+                </div>
+
+                <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert" style="font-size: 13px;">
+                    <span>ℹ</span>
+                    <div>
+                        <strong>Scientific Note:</strong> {{ result.motion_notice }} Optical Flow, Velocity Vectors, and Panic Detection require multi-frame video input.
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                    <span class="text-muted" style="font-size: 13px;">Image: <strong>{{ result.filename }}</strong></span>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('static', filename=result.processed_image_url) }}" download class="btn btn-outline-secondary btn-sm">
+                            📥 Download Annotated Image
+                        </a>
+                        <a href="{{ url_for('detection.upload_image') }}" class="btn btn-primary btn-sm">
+                            Analyze Another Image
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <form method="POST" action="{{ url_for('detection.upload_image') }}" enctype="multipart/form-data" id="imageUploadForm" class="p-5 border rounded-3 bg-light text-center">
+                    <div style="font-size: 48px; margin-bottom: 12px;">📷</div>
+                    <h5 class="fw-bold mb-2">Upload Crowd Image</h5>
+                    <p class="text-muted mb-4" style="font-size: 13px;">
+                        Supported formats: <strong>JPG, JPEG, PNG, BMP</strong>. YOLOv8 person detection with Gaussian Soft-NMS will identify overlapping persons in dense crowd scenes.
+                    </p>
+
+                    <div class="mb-4 mx-auto" style="max-width: 420px;">
+                        <input type="file" name="image" id="imageInput" class="form-control form-control-lg" accept=".jpg,.jpeg,.png,.bmp" required>
+                    </div>
+
+                    <button type="submit" id="imageSubmitBtn" class="btn btn-primary px-5 py-2">
+                        🔍 Detect Crowd Density
+                    </button>
+
+                    <div id="imageLoadingIndicator" class="mt-4 d-none">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div class="text-muted fw-bold">Analyzing Crowd with YOLOv8 & Soft-NMS... Please wait.</div>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    const imageUploadForm = document.getElementById('imageUploadForm');
+    if (imageUploadForm) {
+        imageUploadForm.addEventListener('submit', function() {
+            const btn = document.getElementById('imageSubmitBtn');
+            const loader = document.getElementById('imageLoadingIndicator');
+            if (btn) btn.classList.add('d-none');
+            if (loader) loader.classList.remove('d-none');
+        });
+    }
+</script>
+{% endblock %}

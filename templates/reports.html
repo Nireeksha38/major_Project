@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Incident Reports - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Surveillance Incident Reports & Exports{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Generate Report Column -->
+    <div class="col-lg-5">
+        <div class="dash-card mb-4">
+            <h5 class="fw-bold mb-3">📄 Generate Incident Report</h5>
+            <p class="text-muted" style="font-size: 13px;">
+                Select a completed surveillance session to export a formal incident log with timestamped anomalies and peak crowd telemetry.
+            </p>
+
+            {% if sessions %}
+                <form method="POST" action="" id="reportGenForm">
+                    <div class="mb-3">
+                        <label class="form-label">Select Session</label>
+                        <select name="session_id" id="sessionSelect" class="form-select" required>
+                            {% for s in sessions %}
+                                <option value="{{ s.id }}">
+                                    Session #{{ s.id }} - {{ s.source_name }} ({{ s.maximum_risk }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Report Format</label>
+                        <select name="report_type" class="form-select">
+                            <option value="CSV">CSV (Structured Incident Data)</option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn btn-primary w-100" onclick="submitReportForm()">
+                        📥 Generate Report
+                    </button>
+                </form>
+            {% else %}
+                <div class="alert alert-secondary py-3 text-center" style="font-size: 13px;">
+                    No detection sessions available yet. Analyze a video or webcam feed first.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Generated Reports List -->
+    <div class="col-lg-7">
+        <div class="dash-card">
+            <h5 class="fw-bold mb-3">📁 Available Incident Reports</h5>
+
+            {% if reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" style="font-size: 13px;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Report Name</th>
+                                <th>Type</th>
+                                <th>Generated At</th>
+                                <th>Download</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in reports %}
+                                <tr>
+                                    <td class="fw-semibold">{{ r.report_name }}</td>
+                                    <td><span class="badge bg-secondary">{{ r.report_type }}</span></td>
+                                    <td class="text-muted">{{ r.generated_at.strftime('%Y-%m-%d %H:%M') if r.generated_at else '' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('reports.download_report', report_id=r.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                            Download ⬇
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <span style="font-size: 40px;">📑</span>
+                    <h6 class="mt-2">No generated incident reports yet.</h6>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function submitReportForm() {
+    const sessId = document.getElementById('sessionSelect').value;
+    const form = document.getElementById('reportGenForm');
+    form.action = `/generate-report/${sessId}`;
+    form.submit();
+}
+</script>
+{% endblock %}

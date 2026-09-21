@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}CCTV Connection - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Live CCTV / IP Camera RTSP Interface{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Stream Column -->
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">📡 CCTV Stream Feed</h5>
+                <div>
+                    {% if request.args.get('streaming') == 'true' %}
+                        <span class="badge bg-success">● CONNECTED</span>
+                    {% else %}
+                        <span class="badge bg-secondary">○ DISCONNECTED</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="video-surveillance-box mb-3">
+                {% if request.args.get('streaming') == 'true' %}
+                    <img src="{{ url_for('detection.cctv_feed') }}" alt="CCTV Stream Feed">
+                {% else %}
+                    <div class="text-center py-5">
+                        <div style="font-size: 50px; margin-bottom: 12px;">📹</div>
+                        <h5 class="text-white fw-bold">Camera Offline / Disconnected</h5>
+                        <p class="text-muted mb-3" style="font-size: 13px;">
+                            Enter an RTSP IP camera URL on the right to connect to your live surveillance stream.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if request.args.get('streaming') == 'true' %}
+                <form method="POST" action="{{ url_for('detection.disconnect_cctv') }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        ⏹ Disconnect Camera
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Connection Settings Column -->
+    <div class="col-lg-4">
+        <!-- RTSP Connection Card -->
+        <div class="dash-card">
+            <h5 class="fw-bold mb-3">⚙ Connect RTSP Camera</h5>
+
+            <form method="POST" action="{{ url_for('detection.connect_cctv') }}">
+                <div class="mb-3">
+                    <label class="form-label">Camera Name</label>
+                    <input type="text" name="camera_name" class="form-control" placeholder="Main Entrance CCTV" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">RTSP Stream URL</label>
+                    <input type="text" name="rtsp_url" class="form-control" placeholder="rtsp://192.168.1.100:554/stream" required>
+                    <small class="text-muted" style="font-size: 11px;">Example: rtsp://username:password@ip:554/live</small>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="admin">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="••••">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mb-2">
+                    🔗 Connect Live Camera
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

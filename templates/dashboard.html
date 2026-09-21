@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Real-Time Surveillance Dashboard{% endblock %}
+
+{% block content %}
+<!-- Top Metrics Cards Row -->
+<div class="row g-4 mb-4">
+    <!-- Risk Level Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-lbl">Current Risk Level</div>
+                    <div class="mt-2">
+                        {% if current_risk == 'GREEN' %}
+                            <span class="badge-risk risk-green">🟢 NORMAL (SAFE)</span>
+                        {% elif current_risk == 'YELLOW' %}
+                            <span class="badge-risk risk-yellow">🟡 WARNING (RUSH)</span>
+                        {% else %}
+                            <span class="badge-risk risk-red">🔴 CRITICAL (PANIC)</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-icon">🛡</div>
+            </div>
+            <div class="text-muted mt-3" style="font-size: 12px;">Multi-factor composite risk evaluation</div>
+        </div>
+    </div>
+
+    <!-- People Count Card -->
+    <div class="col-xl-2 col-md-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-lbl">People Count</div>
+                    <div class="card-val text-primary" id="val_people">{{ current_people }}</div>
+                </div>
+                <div class="card-icon">👥</div>
+            </div>
+            <div class="text-muted mt-3" style="font-size: 12px;">YOLOv8 + Soft-NMS</div>
+        </div>
+    </div>
+
+    <!-- Relative Crowd Speed Card -->
+    <div class="col-xl-2 col-md-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-lbl">Relative Speed</div>
+                    <div class="card-val text-info" id="val_speed">{{ current_speed }}</div>
+                </div>
+                <div class="card-icon">⚡</div>
+            </div>
+            <div class="text-muted mt-3" style="font-size: 12px;">Deep SORT Trajectory</div>
+        </div>
+    </div>
+
+    <!-- Motion Entropy Card -->
+    <div class="col-xl-2 col-md-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-lbl">Motion Entropy</div>
+                    <div class="card-val text-warning" id="val_entropy">{{ current_entropy }}</div>
+                </div>
+                <div class="card-icon">🌀</div>
+            </div>
+            <div class="text-muted mt-3" style="font-size: 12px;">Farneback Directional</div>
+        </div>
+    </div>
+
+    <!-- Active Alerts Card -->
+    <div class="col-xl-3 col-md-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-lbl">Active Alerts</div>
+                    <div class="card-val text-danger" id="val_alerts">{{ active_alerts_count }}</div>
+                </div>
+                <div class="card-icon">🚨</div>
+            </div>
+            <div class="text-muted mt-3" style="font-size: 12px;">Cooldown Throttled (10s)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Launch Surveillance Feeds Row -->
+<div class="row g-4 mb-4">
+    <!-- Camera & Feed Launcher -->
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">📹 Live Feed Monitor</h5>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('detection.webcam_page') }}" class="btn btn-sm btn-outline-primary">💻 Laptop Webcam</a>
+                    <a href="{{ url_for('detection.cctv_page') }}" class="btn btn-sm btn-outline-success">📡 Live CCTV</a>
+                    <a href="{{ url_for('detection.upload_video') }}" class="btn btn-sm btn-primary">📹 Process Video</a>
+                </div>
+            </div>
+
+            <div class="video-surveillance-box p-4 text-center">
+                {% if video %}
+                    <video width="100%" height="380" controls autoplay>
+                        <source src="{{ url_for('static', filename='uploads/original/' + video) }}" type="video/mp4">
+                    </video>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div style="font-size: 50px; margin-bottom: 15px;">🎥</div>
+                        <h5 class="text-white fw-bold">Live AI Surveillance Ready</h5>
+                        <p class="text-muted mb-4" style="max-width: 480px; margin: 0 auto; font-size: 13px;">
+                            Launch real-time surveillance via laptop webcam, connect to an RTSP IP camera, or upload a recorded video sequence to run the 10-stage AI detection pipeline.
+                        </p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="{{ url_for('detection.webcam_page') }}" class="btn btn-primary px-4">Start Webcam Stream</a>
+                            <a href="{{ url_for('detection.upload_video') }}" class="btn btn-outline-light px-4">Upload Video</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Surveillance Channels & System Status -->
+    <div class="col-lg-4">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">📡 Surveillance Channels</h5>
+                <span class="badge bg-success">ACTIVE</span>
+            </div>
+            <p class="text-muted" style="font-size: 12px;">
+                Active multi-stream monitoring channels and automated risk assessment engines:
+            </p>
+
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('detection.webcam_page') }}" class="btn btn-outline-primary text-start py-2 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>💻</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 13px;">Laptop Webcam Feed</div>
+                            <small class="text-muted" style="font-size: 11px;">Local camera real-time stream</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-primary">Online</span>
+                </a>
+
+                <a href="{{ url_for('detection.cctv_page') }}" class="btn btn-outline-success text-start py-2 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>📹</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 13px;">IP CCTV Surveillance</div>
+                            <small class="text-muted" style="font-size: 11px;">RTSP / ONVIF Network Camera</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-success">Ready</span>
+                </a>
+
+                <a href="{{ url_for('detection.upload_video') }}" class="btn btn-outline-secondary text-start py-2 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🎬</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 13px;">Recorded Footage Analysis</div>
+                            <small class="text-muted" style="font-size: 11px;">MP4, AVI surveillance processing</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-dark">Upload</span>
+                </a>
+
+                <a href="{{ url_for('detection.upload_image') }}" class="btn btn-outline-info text-start py-2 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🖼</span>
+                        <div>
+                            <div class="fw-bold" style="font-size: 13px;">Static Crowd Image Density</div>
+                            <small class="text-muted" style="font-size: 11px;">Soft-NMS person counting</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-info text-dark">Analyze</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts & Recent Sessions Row -->
+<div class="row g-4">
+    <!-- Recent Alerts -->
+    <div class="col-lg-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">🚨 Active Surveillance Alerts</h5>
+                <span class="badge bg-danger">{{ recent_alerts|length }} Recent</span>
+            </div>
+
+            {% if recent_alerts %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" style="font-size: 13px;">
+                        <thead>
+                            <tr class="text-muted">
+                                <th>Severity</th>
+                                <th>Alert Type</th>
+                                <th>Message</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in recent_alerts %}
+                                <tr>
+                                    <td>
+                                        {% if alert.severity == 'CRITICAL' %}
+                                            <span class="badge bg-danger">CRITICAL</span>
+                                        {% elif alert.severity == 'WARNING' %}
+                                            <span class="badge bg-warning text-dark">WARNING</span>
+                                        {% else %}
+                                            <span class="badge bg-info text-dark">INFO</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-semibold">{{ alert.alert_type }}</td>
+                                    <td>{{ alert.message }}</td>
+                                    <td class="text-muted">{{ alert.timestamp.strftime('%H:%M:%S') if alert.timestamp else '' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted">
+                    <span style="font-size: 30px;">✅</span>
+                    <p class="mb-0 mt-2" style="font-size: 13px;">No alerts triggered in the current surveillance window.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="col-lg-6">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">📜 Recent Detection Sessions</h5>
+                <a href="{{ url_for('history.history_home') }}" class="text-decoration-none" style="font-size: 13px;">View All History →</a>
+            </div>
+
+            {% if recent_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" style="font-size: 13px;">
+                        <thead>
+                            <tr class="text-muted">
+                                <th>Source</th>
+                                <th>Peak People</th>
+                                <th>Peak Risk</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in recent_sessions %}
+                                <tr>
+                                    <td class="fw-semibold">
+                                        {% if s.source_type == 'video' %}📹{% elif s.source_type == 'webcam' %}💻{% elif s.source_type == 'cctv' %}📡{% else %}🖼{% endif %}
+                                        {{ s.source_name[:18] }}...
+                                    </td>
+                                    <td>{{ s.maximum_people }}</td>
+                                    <td>
+                                        {% if s.maximum_risk == 'GREEN' %}
+                                            <span class="badge bg-success">GREEN</span>
+                                        {% elif s.maximum_risk == 'YELLOW' %}
+                                            <span class="badge bg-warning text-dark">YELLOW</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">RED</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-muted">{{ s.duration }}s</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted">
+                    <span style="font-size: 30px;">📊</span>
+                    <p class="mb-0 mt-2" style="font-size: 13px;">No surveillance sessions recorded yet.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

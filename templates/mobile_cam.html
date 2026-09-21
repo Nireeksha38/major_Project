@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}DroidCam Surveillance - Crowd Stampede AI{% endblock %}
+{% block page_title %}📱 DroidCam Mobile Surveillance Live Interface{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Stream Column -->
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="fw-bold mb-0">📱 DroidCam Live Surveillance Stream</h5>
+                    <span id="droidcamConnectionBadge" class="badge {% if streaming == 'true' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {% if streaming == 'true' %}● CONNECTED{% else %}○ DISCONNECTED{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Video Display Container -->
+            <div class="video-surveillance-box mb-3 position-relative" style="min-height: 420px; background: #070d1e; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #1e293b;">
+                {% if streaming == 'true' %}
+                    <img id="mobileIpcamFeed" src="{{ url_for('detection.mobile_cam_feed') }}" alt="DroidCam Feed" style="width: 100%; height: auto; object-fit: contain; max-height: 520px;">
+                {% else %}
+                    <div id="streamPlaceholder" class="text-center py-5">
+                        <div style="font-size: 55px; margin-bottom: 12px;">📱</div>
+                        <h5 class="text-white fw-bold">DroidCam Disconnected</h5>
+                        <p class="text-muted mb-3" style="font-size: 13px; max-width: 480px; margin: 0 auto;">
+                            Enter your phone's DroidCam IP and Port on the right to start live AI crowd surveillance.
+                        </p>
+                        <div class="d-inline-flex gap-2">
+                            <span class="badge bg-dark border border-secondary text-info">💡 Open DroidCam on Phone &bull; Connect Port 4747</span>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Live HUD Metrics Overlay -->
+                <div id="liveHudPill" class="position-absolute top-0 start-0 m-3 p-2 px-3 rounded shadow-sm {% if streaming != 'true' %}d-none{% endif %}" style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.15);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            <small class="text-muted d-block" style="font-size: 10px;">RISK LEVEL</small>
+                            <span id="hudRiskBadge" class="badge bg-success fw-bold">GREEN</span>
+                        </div>
+                        <div class="border-start ps-3 border-secondary">
+                            <small class="text-muted d-block" style="font-size: 10px;">PEOPLE</small>
+                            <strong id="hudPeopleCount" class="text-white">0</strong>
+                        </div>
+                        <div class="border-start ps-3 border-secondary">
+                            <small class="text-muted d-block" style="font-size: 10px;">SPEED</small>
+                            <strong id="hudSpeed" class="text-white">0.00</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls bar -->
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    {% if streaming == 'true' %}
+                        <form method="POST" action="{{ url_for('detection.disconnect_mobile_cam') }}">
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                ⏹ Disconnect DroidCam
+                            </button>
+                        </form>
+                    {% endif %}
+                    <button id="resetPipelineBtn" class="btn btn-outline-secondary btn-sm" onclick="resetMobilePipeline()">
+                        🔄 Reset AI State
+                    </button>
+                </div>
+                <div id="streamStatusText" class="text-muted" style="font-size: 12px;">
+                    Status: <span id="statusSpanText" class="text-info">{% if streaming == 'true' %}Live DroidCam stream active{% else %}Ready to connect{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry Cards Row -->
+        <div class="row g-3 mt-1">
+            <div class="col-md-3">
+                <div class="dash-card text-center p-3">
+                    <small class="text-muted d-block mb-1" style="font-size: 11px;">CROWD COUNT</small>
+                    <h3 id="cardPeopleCount" class="fw-bold mb-0 text-primary">0</h3>
+                    <small class="text-muted" style="font-size: 10px;">Persons Detected</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="dash-card text-center p-3">
+                    <small class="text-muted d-block mb-1" style="font-size: 11px;">RISK SCORE</small>
+                    <h3 id="cardRiskScore" class="fw-bold mb-0 text-success">0.00</h3>
+                    <small id="cardRiskLevel" class="text-success fw-bold" style="font-size: 10px;">GREEN (SAFE)</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="dash-card text-center p-3">
+                    <small class="text-muted d-block mb-1" style="font-size: 11px;">CROWD SPEED</small>
+                    <h3 id="cardCrowdSpeed" class="fw-bold mb-0 text-info">0.00</h3>
+                    <small class="text-muted" style="font-size: 10px;">px/frame velocity</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="dash-card text-center p-3">
+                    <small class="text-muted d-block mb-1" style="font-size: 11px;">FALLS DETECTED</small>
+                    <h3 id="cardFallsCount" class="fw-bold mb-0 text-warning">0</h3>
+                    <small class="text-muted" style="font-size: 10px;">Trip / Collapse Alert</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Settings Column -->
+    <div class="col-lg-4">
+        <div class="dash-card p-3 mb-3">
+            <h5 class="fw-bold text-white mb-2">⚙ Connect DroidCam</h5>
+            <p class="text-muted mb-3" style="font-size: 12px;">
+                Connect to DroidCam on your smartphone for live wireless AI surveillance.
+            </p>
+
+            <form method="POST" action="{{ url_for('detection.connect_mobile_cam') }}">
+                <div class="mb-3">
+                    <label class="form-label text-white fw-bold" style="font-size: 12px;">DroidCam Phone IP & Port</label>
+                    <input type="text" name="mobile_url" id="mobileIpUrlInput" class="form-control" placeholder="192.168.1.15:4747" value="{{ active_url }}" required>
+                    <small class="text-muted" style="font-size: 11px;">Enter the <code>WiFi IP:Port</code> shown in your DroidCam app.</small>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm py-2 mb-2">
+                    🔗 Connect DroidCam Stream
+                </button>
+            </form>
+
+            <hr class="my-3 border-secondary">
+
+            <!-- 3-Step Setup Instructions -->
+            <div class="p-3 rounded bg-dark border border-secondary" style="font-size: 12px;">
+                <h6 class="fw-bold text-warning mb-2">📋 3-Step Setup Guide:</h6>
+                <ol class="mb-0 ps-3 text-muted" style="line-height: 1.7;">
+                    <li>Ensure your <strong>Phone & PC are connected to the SAME Wi-Fi</strong>.</li>
+                    <li>Open <strong>DroidCam</strong> on your phone & check:
+                        <ul class="ps-3 my-1">
+                            <li><code>WiFi IP: (e.g. 192.168.1.15)</code></li>
+                            <li><code>DroidCam Port: 4747</code></li>
+                        </ul>
+                    </li>
+                    <li>Enter that IP & Port above (e.g. <code>192.168.1.15:4747</code>) and click <strong>Connect</strong>!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetMobilePipeline() {
+        fetch('/api/mobile/reset', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                alert('Mobile camera pipeline reset successfully.');
+            })
+            .catch(err => console.error(err));
+    }
+
+    // Telemetry Poller for real-time risk HUD and gauges
+    let isStreaming = "{{ streaming }}" === "true";
+
+    if (isStreaming) {
+        setInterval(() => {
+            fetch('/api/mobile-telemetry')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data) return;
+
+                    // Update Connection Badge dynamically
+                    const connBadge = document.getElementById('droidcamConnectionBadge');
+                    if (connBadge) {
+                        if (data.connected && data.stream_status === 'CONNECTED') {
+                            connBadge.className = 'badge bg-success';
+                            connBadge.innerText = '● CONNECTED';
+                        } else {
+                            connBadge.className = 'badge bg-secondary';
+                            connBadge.innerText = '○ DISCONNECTED';
+                        }
+                    }
+
+                    // Update Telemetry Cards
+                    const count = data.people_count || 0;
+                    const riskScore = (data.risk_score || 0).toFixed(2);
+                    const riskLevel = data.risk_level || 'GREEN';
+                    const speed = (data.relative_speed || 0).toFixed(2);
+                    const falls = data.num_falls || 0;
+
+                    document.getElementById('cardPeopleCount').innerText = count;
+                    document.getElementById('cardRiskScore').innerText = riskScore;
+                    document.getElementById('cardCrowdSpeed').innerText = speed;
+                    document.getElementById('cardFallsCount').innerText = falls;
+
+                    // Risk Level badge and color
+                    const cardRiskLvl = document.getElementById('cardRiskLevel');
+                    const hudBadge = document.getElementById('hudRiskBadge');
+                    cardRiskLvl.innerText = `${riskLevel} (${riskScore > 0.7 ? 'CRITICAL' : riskScore > 0.45 ? 'WARNING' : 'SAFE'})`;
+                    hudBadge.innerText = riskLevel;
+
+                    let colorClass = 'text-success';
+                    let badgeClass = 'bg-success';
+                    if (riskLevel === 'YELLOW') {
+                        colorClass = 'text-warning';
+                        badgeClass = 'bg-warning text-dark';
+                    } else if (riskLevel === 'RED') {
+                        colorClass = 'text-danger';
+                        badgeClass = 'bg-danger';
+                    }
+
+                    cardRiskLvl.className = `${colorClass} fw-bold`;
+                    hudBadge.className = `badge ${badgeClass} fw-bold`;
+
+                    // Update HUD Overlay
+                    document.getElementById('hudPeopleCount').innerText = count;
+                    document.getElementById('hudSpeed').innerText = speed;
+
+                    if (data.summary_message) {
+                        document.getElementById('statusSpanText').innerText = data.summary_message;
+                    }
+                })
+                .catch(e => console.error("Telemetry polling error:", e));
+        }, 500);
+    }
+</script>
+{% endblock %}

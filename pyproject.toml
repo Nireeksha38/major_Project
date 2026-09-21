@@ -1,0 +1,29 @@
+[tool.pyright]
+venvPath = "."
+venv = "venv"
+extraPaths = ["."]
+exclude = [
+    "**/venv",
+    "**/ml/dataset",
+    "**/static/uploads",
+    "**/outputs",
+    "**/.pytest_cache",
+    "**/__pycache__",
+    "**/__pyrefly_virtual__"
+]
+reportMissingImports = "none"
+reportMissingTypeStubs = "none"
+reportGeneralTypeIssues = "none"
+
+[tool.pyrefly]
+python-interpreter-path = "venv/Scripts/python.exe"
+site-package-path = ["venv/Lib/site-packages"]
+search-path = ["."]
+project-excludes = [
+    "venv/**",
+    "**/venv/**",
+    "**/__pycache__/**"
+]
+
+[tool.pyrefly.errors]
+missing-import = false

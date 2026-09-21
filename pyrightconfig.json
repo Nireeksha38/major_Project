@@ -1,0 +1,45 @@
+{
+    "typeCheckingMode": "off",
+    "venvPath": ".",
+    "venv": "venv",
+    "extraPaths": [
+        "."
+    ],
+    "include": [
+        "app.py",
+        "config.py",
+        "extensions.py",
+        "routes",
+        "models",
+        "detection",
+        "tracking",
+        "motion_analysis",
+        "behavior",
+        "risk_engine",
+        "utils",
+        "ml",
+        "tests"
+    ],
+    "exclude": [
+        "**/venv",
+        "**/ml/dataset",
+        "**/static/uploads",
+        "**/outputs",
+        "**/.pytest_cache",
+        "**/__pycache__",
+        "**/__pyrefly_virtual__"
+    ],
+    "reportMissingImports": "none",
+    "reportMissingTypeStubs": "none",
+    "reportUnknownParameterType": "none",
+    "reportUnknownArgumentType": "none",
+    "reportUnknownVariableType": "none",
+    "reportUnknownMemberType": "none",
+    "reportGeneralTypeIssues": "none",
+    "reportOptionalMemberAccess": "none",
+    "reportOptionalSubscript": "none",
+    "reportPrivateImportUsage": "none",
+    "reportWildcardImportFromLibrary": "none",
+    "pythonVersion": "3.11",
+    "pythonPlatform": "Windows"
+}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Account Profile & Settings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="dash-card">
+            <h5 class="fw-bold mb-3">👤 Operator Profile</h5>
+
+            <form method="POST" action="{{ url_for('profile.profile_page') }}">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="full_name" class="form-control" value="{{ user.full_name }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-control" value="{{ user.email }}" disabled>
+                    <small class="text-muted" style="font-size: 11px;">Email cannot be modified directly.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Role</label>
+                    <input type="text" class="form-control" value="{{ user.role|upper }}" disabled>
+                </div>
+
+                <hr class="my-4">
+                <h6 class="fw-bold mb-3">Change Password</h6>
+
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" name="new_password" class="form-control" placeholder="Leave blank to keep unchanged">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" name="confirm_password" class="form-control" placeholder="Repeat new password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    Save Profile Changes
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

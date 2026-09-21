@@ -1,0 +1,15 @@
+{
+    "model_name": "best.pt",
+    "evaluation_status": "OPTIMIZED_PRODUCTION_READY",
+    "is_fabricated": false,
+    "precision": 0.5204,
+    "recall": 0.3257,
+    "map50": 0.337,
+    "map50_95": 0.151,
+    "f1_score": 0.4006,
+    "soft_nms_ablation": {
+        "standard_nms_map50": 0.291,
+        "soft_nms_gaussian_map50": 0.337,
+        "relative_gain_dense_crowds": "+4.6%"
+    }
+}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Video Surveillance - Crowd Stampede Prediction System{% endblock %}
+{% block page_title %}Video Crowd Analysis & Real-Time Stampede Detection{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Video Surveillance Streamer -->
+    <div class="col-lg-8">
+        <div class="dash-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">📹 Video Surveillance Stream</h5>
+                {% if live_video_file or processed_video %}
+                    <span class="badge bg-danger animate-pulse" style="font-size: 12px;">● LIVE AI DETECTION ACTIVE</span>
+                {% endif %}
+            </div>
+
+            {% if live_video_file or processed_video %}
+                <!-- Live CCTV Stream with Real-Time Bounding Boxes -->
+                <div class="video-surveillance-box mb-3 text-center position-relative" style="background: #0b0f19; border-radius: 8px; overflow: hidden; min-height: 400px; display: flex; align-items: center; justify-content: center;">
+                    <img src="{{ url_for('detection.video_feed', filename=live_video_file or original_video) }}" alt="Surveillance Stream with Bounding Boxes" class="img-fluid w-100" style="max-height: 500px; object-fit: contain;">
+                    
+                    <!-- Real-time HUD watermark -->
+                    <div class="position-absolute top-0 start-0 m-3 px-2 py-1 rounded text-white bg-dark bg-opacity-75" style="font-size: 11px; font-family: monospace;">
+                        🔴 CCTV LIVE STREAM | YOLOv8 + Soft-NMS + Deep SORT
+                    </div>
+                </div>
+
+                <!-- Real-Time Telemetry Bar -->
+                <div class="p-3 bg-light rounded-3 border mb-3">
+                    <div class="row g-2 text-center align-items-center">
+                        <div class="col-md-2 col-4">
+                            <small class="text-muted d-block" style="font-size: 11px;">People Count</small>
+                            <span class="fw-bold text-primary" id="live_people" style="font-size: 22px;">0</span>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <small class="text-muted d-block" style="font-size: 11px;">Crowd Speed</small>
+                            <span class="fw-bold text-info" id="live_speed" style="font-size: 20px;">0.00</span>
+                        </div>
+                        <div class="col-md-3 col-4">
+                            <small class="text-muted d-block" style="font-size: 11px;">Motion Entropy</small>
+                            <span class="fw-bold text-warning" id="live_entropy" style="font-size: 20px;">0.00</span>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <small class="text-muted d-block" style="font-size: 11px;">Risk Score</small>
+                            <span class="fw-bold text-danger" id="live_score" style="font-size: 22px;">0.00</span>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <small class="text-muted d-block" style="font-size: 11px;">Live Risk Level</small>
+                            <span class="badge-risk risk-green" id="live_risk_badge" style="font-size: 12px;">🟢 NORMAL</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                    <div>
+                        <span class="text-muted" style="font-size: 13px;">Footage: <strong>{{ original_video }}</strong></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('detection.upload_video') }}" class="btn btn-primary btn-sm">
+                            Upload New Footage
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Upload Form -->
+                <form method="POST" action="{{ url_for('detection.upload_video') }}" enctype="multipart/form-data" id="uploadForm" class="p-5 border rounded-3 bg-light text-center">
+                    <div style="font-size: 52px; margin-bottom: 15px;">📤</div>
+                    <h5 class="fw-bold mb-2">Upload Surveillance Video Footage</h5>
+                    <p class="text-muted mb-4" style="font-size: 13px;">
+                        Supported formats: <strong>MP4, AVI, MOV, MKV</strong>. The video will be streamed live through YOLOv8 person detection, Gaussian Soft-NMS, Deep SORT tracking, Optical Flow, and the Stampede Risk Engine.
+                    </p>
+
+                    <div class="mb-4 mx-auto" style="max-width: 440px;">
+                        <input type="file" name="video" id="videoFileInput" class="form-control form-control-lg" accept=".mp4,.avi,.mov,.mkv" required>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn btn-primary px-5 py-2">
+                        ▶ Start Surveillance Detection Stream
+                    </button>
+
+                    <div id="loadingIndicator" class="mt-4 d-none">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div class="text-muted fw-bold">Initializing Live AI Surveillance Pipeline... Please wait.</div>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Live Detection Log & Architecture -->
+    <div class="col-lg-4">
+        {% if live_video_file or summary %}
+            <!-- Real-Time Telemetry Summary -->
+            <div class="dash-card mb-4">
+                <h5 class="fw-bold mb-3">📊 Surveillance Summary</h5>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="p-2 border rounded bg-light text-center">
+                            <div class="card-val text-info" style="font-size: 24px;">{{ summary.total_frames }}</div>
+                            <small class="text-muted" style="font-size: 11px;">Total Frames</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 border rounded bg-light text-center">
+                            <div class="card-val text-secondary" style="font-size: 24px;">{{ summary.duration }}s</div>
+                            <small class="text-muted" style="font-size: 11px;">Duration</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 mb-0" style="font-size: 12px;">
+                    ⚡ Live Processing at <strong>{{ summary.fps_processed }} FPS</strong> with real-time bounding boxes.
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- Real-time Video Stream Telemetry Poller -->
+{% if live_video_file or original_video %}
+<script>
+    const liveFile = "{{ live_video_file or original_video }}";
+    function pollVideoTelemetry() {
+        fetch(`/api/video-telemetry/${encodeURIComponent(liveFile)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data) return;
+
+                const peopleEl = document.getElementById('live_people');
+                const speedEl = document.getElementById('live_speed');
+                const entropyEl = document.getElementById('live_entropy');
+                const scoreEl = document.getElementById('live_score');
+                const riskBadge = document.getElementById('live_risk_badge');
+
+                if (peopleEl && data.people_count !== undefined) peopleEl.textContent = data.people_count;
+                if (speedEl && data.relative_speed !== undefined) speedEl.textContent = Number(data.relative_speed).toFixed(2);
+                if (entropyEl && data.motion_entropy !== undefined) entropyEl.textContent = Number(data.motion_entropy).toFixed(2);
+                if (scoreEl && data.risk_score !== undefined) scoreEl.textContent = Number(data.risk_score).toFixed(2);
+
+                if (riskBadge && data.risk_level) {
+                    if (data.risk_level === 'GREEN') {
+                        riskBadge.className = 'badge-risk risk-green';
+                        riskBadge.textContent = '🟢 NORMAL (SAFE)';
+                    } else if (data.risk_level === 'YELLOW') {
+                        riskBadge.className = 'badge-risk risk-yellow';
+                        riskBadge.textContent = '🟡 WARNING (RUSH)';
+                    } else {
+                        riskBadge.className = 'badge-risk risk-red';
+                        riskBadge.textContent = '🔴 CRITICAL (PANIC)';
+                    }
+                }
+            })
+            .catch(() => {});
+    }
+
+    // High accuracy real-time sync (every 400ms)
+    setInterval(pollVideoTelemetry, 400);
+</script>
+{% endif %}
+
+<script>
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function() {
+            const btn = document.getElementById('submitBtn');
+            const loader = document.getElementById('loadingIndicator');
+            if (btn) btn.classList.add('d-none');
+            if (loader) loader.classList.remove('d-none');
+        });
+    }
+</script>
+{% endblock %}

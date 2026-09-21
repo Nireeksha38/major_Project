@@ -1,0 +1,16 @@
+preset = "off"
+disable-type-errors-in-ide = true
+python-interpreter-path = "venv/Scripts/python.exe"
+site-package-path = ["venv/Lib/site-packages"]
+search-path = ["."]
+project-includes = ["**/*.py"]
+project-excludes = [
+    "venv/**",
+    "**/venv/**",
+    "**/__pycache__/**",
+    "outputs/**",
+    "static/uploads/**"
+]
+
+[errors]
+missing-import = false
