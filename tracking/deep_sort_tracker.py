@@ -137,10 +137,10 @@ class DeepSORTTracker:
         self.trackers = []
         self.frame_count = 0
 
-    def update(self, detections):
+    def update(self, detections=None):
         """
         Updates trackers with current frame detections.
-        detections: list of [x1, y1, x2, y2, score, class_id] or Nx6 array
+        detections: list of [x1, y1, x2, y2, score, class_id] or Nx6 array, or None for prediction-only interval frame.
         Returns:
             active_tracks: list of dicts with:
                 id, bbox [x1, y1, x2, y2], score, class_id,
@@ -160,6 +160,27 @@ class DeepSORTTracker:
 
         for i in reversed(to_delete):
             del self.trackers[i]
+
+        # If this is a prediction-only frame (YOLO detection skipped for high FPS)
+        if detections is None:
+            active_tracks = []
+            for trk in self.trackers:
+                if trk.is_confirmed and trk.time_since_update <= 5:
+                    bbox = trk.get_state_box()
+                    active_tracks.append({
+                        "id": trk.id,
+                        "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        "score": float(trk.score),
+                        "class_id": int(trk.class_id),
+                        "speed": float(trk.get_speed()),
+                        "trajectory": list(trk.history),
+                        "aspect_ratio": float(trk.x[2, 0]),
+                        "height": float(trk.x[3, 0]),
+                        "vertical_velocity": float(trk.get_vertical_velocity()),
+                        "aspect_history": list(trk.aspect_history),
+                        "height_history": list(trk.height_history)
+                    })
+            return active_tracks
 
         # 2. Extract detection bounding boxes
         if len(detections) > 0:
@@ -202,8 +223,8 @@ class DeepSORTTracker:
             if trk.time_since_update <= self.max_age:
                 surviving_trackers.append(trk)
 
-                # Return track if confirmed and recently updated (within 3 frames to bridge micro-gaps)
-                if trk.is_confirmed and trk.time_since_update <= 3:
+                # Return track if confirmed and recently updated (within 4 frames to bridge intervals)
+                if trk.is_confirmed and trk.time_since_update <= 4:
                     bbox = trk.get_state_box()
                     active_tracks.append({
                         "id": trk.id,
@@ -221,7 +242,8 @@ class DeepSORTTracker:
 
         self.trackers = surviving_trackers
 
-        # Deduplicate active tracks: If two tracks overlap or enclose (IoU >= 0.35 or IoM >= 0.50), keep the higher-confidence one
+        # Deduplicate only true duplicate duplicate clones (IoU >= 0.80 or extreme IoM >= 0.90)
+        # Preserves all adjacent and distinct individuals
         if len(active_tracks) > 1:
             deduped = []
             active_tracks.sort(key=lambda t: t["score"], reverse=True)
@@ -230,7 +252,7 @@ class DeepSORTTracker:
                 overlap = False
                 for d in deduped:
                     b2 = d["bbox"]
-                    if is_duplicate_box(b1, b2, iou_thresh=0.35, iom_thresh=0.50):
+                    if is_duplicate_box(b1, b2, iou_thresh=0.80, iom_thresh=0.90):
                         overlap = True
                         break
                 if not overlap:

@@ -51,7 +51,7 @@ class YOLOv8Detector:
             classes: N ndarray (filtered for person = 0)
         """
         confidence = conf if conf is not None else self.conf_threshold
-        img_size = imgsz or getattr(Config, "YOLO_IMGSZ", 480)
+        img_size = imgsz or getattr(Config, "YOLO_IMGSZ", 384)
         if self._model is None:
             self._model = YOLO(self.model_name or "yolov8n.pt")
 
@@ -99,18 +99,18 @@ class YOLOv8Detector:
             detections_list: list of [x1, y1, x2, y2, score, class_id]
         """
         target_conf = conf_thresh or Config.YOLO_CONFIDENCE
-        raw_conf = max(0.20, target_conf - 0.05)
+        raw_conf = max(0.18, target_conf - 0.10)
         raw_boxes, raw_scores, raw_classes = self.detect_raw(frame, conf=raw_conf)
 
         if len(raw_boxes) == 0:
             return np.empty((0, 4)), np.array([]), np.array([]), []
 
-        # Filter out tiny noise boxes
+        # Filter out tiny noise artifacts while retaining distant people
         valid_indices = []
         for i, b in enumerate(raw_boxes):
             w = b[2] - b[0]
             h = b[3] - b[1]
-            if w >= 20 and h >= 25:
+            if w >= 14 and h >= 20:
                 valid_indices.append(i)
 
         if not valid_indices:
@@ -144,7 +144,8 @@ class YOLOv8Detector:
         if len(refined_boxes) == 0:
             return np.empty((0, 4)), np.array([]), np.array([]), []
 
-        # Deduplicate overlapping & nested boxes for exact single-person accuracy
+        # Deduplicate only true duplicate boxes (IoU >= 0.75 or extreme containment IoM >= 0.88)
+        # Preserves all adjacent, overlapping, and crowded individuals
         order = np.argsort(-refined_scores)
         keep = []
         for i in order:
@@ -152,7 +153,7 @@ class YOLOv8Detector:
             overlap = False
             for k in keep:
                 box_k = refined_boxes[k]
-                if is_duplicate_box(box_i, box_k, iou_thresh=0.35, iom_thresh=0.50):
+                if is_duplicate_box(box_i, box_k, iou_thresh=0.75, iom_thresh=0.88):
                     overlap = True
                     break
             if not overlap:

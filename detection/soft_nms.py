@@ -49,10 +49,11 @@ def calculate_iom(box1, box2):
     return inter_area / min_area
 
 
-def is_duplicate_box(box1, box2, iou_thresh=0.38, iom_thresh=0.50):
+def is_duplicate_box(box1, box2, iou_thresh=0.75, iom_thresh=0.88):
     """
-    Returns True if box1 and box2 represent the same physical person
-    either via standard IoU overlap OR nested child-parent enclosure (IoM).
+    Returns True if box1 and box2 represent the exact same physical person detection
+    either via extreme IoU overlap OR nearly complete child-parent enclosure (IoM >= 0.88).
+    Preserves adjacent, overlapping, and crowded individuals.
     """
     iou = calculate_iou(box1, box2)
     if iou >= iou_thresh:

@@ -43,12 +43,22 @@
                 <div class="tab-pane fade show active" id="browser-mode" role="tabpanel">
                     <!-- Browser Controls Bar -->
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 bg-light rounded border">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 260px;">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width: 240px;">
                             <label for="browser_camera_select" class="form-label mb-0 fw-semibold text-muted" style="font-size: 12px; white-space: nowrap;">
-                                Camera Device:
+                                Camera:
                             </label>
                             <select id="browser_camera_select" class="form-select form-select-sm" style="font-weight: 500;" onchange="onBrowserCameraSelectChange(this.value)">
                                 <option value="">⏳ Detecting cameras...</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-2" style="min-width: 220px;">
+                            <label for="detection_mode_select" class="form-label mb-0 fw-semibold text-muted" style="font-size: 12px; white-space: nowrap;">
+                                ⚡ Mode:
+                            </label>
+                            <select id="detection_mode_select" class="form-select form-select-sm" style="font-weight: 500;">
+                                <option value="2" selected>⚡ Smart Interval (Smooth & Fast)</option>
+                                <option value="1">🎯 Continuous (Every Frame)</option>
+                                <option value="3">🚀 Turbo (Low CPU Usage)</option>
                             </select>
                         </div>
                         <div class="d-flex align-items-center gap-1">
@@ -463,14 +473,18 @@
                 const ctx = samplingCanvas.getContext('2d');
                 ctx.drawImage(rawVideo, 0, 0, samplingCanvas.width, samplingCanvas.height);
 
-                // Convert to JPEG Data URL
-                const frameDataUrl = samplingCanvas.toDataURL('image/jpeg', 0.72);
+                // Convert to JPEG Data URL with lightweight compression for fast transport
+                const frameDataUrl = samplingCanvas.toDataURL('image/jpeg', 0.70);
+                const selectedSkip = parseInt(document.getElementById('detection_mode_select')?.value || '2', 10);
 
                 // Send frame to Flask Backend AI Pipeline
                 const response = await fetch("{{ url_for('detection.process_webcam_frame') }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ frame: frameDataUrl })
+                    body: JSON.stringify({
+                        frame: frameDataUrl,
+                        frame_skip: selectedSkip
+                    })
                 });
 
                 if (response.ok) {
@@ -492,21 +506,23 @@
             }
         }
 
-        // Schedule next frame (~25 FPS pacing)
+        // Schedule next frame (~25-30 FPS pacing)
         if (isBrowserStreaming) {
-            browserLoopTimer = setTimeout(captureAndProcessLoop, 35);
+            browserLoopTimer = setTimeout(captureAndProcessLoop, 30);
         }
     }
 
+    const _reusableImg = new Image();
     function renderAnnotatedImage(imgDataUrl) {
-        const img = new Image();
-        img.onload = () => {
-            outputCanvas.width = img.width;
-            outputCanvas.height = img.height;
+        _reusableImg.onload = () => {
+            if (outputCanvas.width !== _reusableImg.width || outputCanvas.height !== _reusableImg.height) {
+                outputCanvas.width = _reusableImg.width;
+                outputCanvas.height = _reusableImg.height;
+            }
             const ctx = outputCanvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(_reusableImg, 0, 0);
         };
-        img.src = imgDataUrl;
+        _reusableImg.src = imgDataUrl;
     }
 
     function updateFpsCounter() {

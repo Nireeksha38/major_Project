@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}CCTV Connection - Crowd Stampede Prediction System{% endblock %}
+{% block title %}Live CCTV Surveillance - Crowd Stampede Prediction System{% endblock %}
 {% block page_title %}Live CCTV / IP Camera RTSP Interface{% endblock %}
 
 {% block content %}
@@ -8,75 +8,172 @@
     <!-- Stream Column -->
     <div class="col-lg-8">
         <div class="dash-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0">📡 CCTV Stream Feed</h5>
-                <div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="fw-bold mb-0">📡 Live CCTV Surveillance Feed</h5>
+                </div>
+                <div class="d-flex align-items-center gap-2">
                     {% if request.args.get('streaming') == 'true' %}
-                        <span class="badge bg-success">● CONNECTED</span>
+                        <span class="badge bg-success">● LIVE STREAMING</span>
                     {% else %}
                         <span class="badge bg-secondary">○ DISCONNECTED</span>
                     {% endif %}
+                    <span id="cctv_fps_badge" class="badge bg-dark text-light border" style="font-family: monospace; font-size: 11px;">
+                        -- FPS
+                    </span>
                 </div>
             </div>
 
-            <div class="video-surveillance-box mb-3">
+            <div class="video-surveillance-box mb-3" style="position: relative; background: #000; border-radius: 10px; overflow: hidden; min-height: 420px; display: flex; align-items: center; justify-content: center;">
                 {% if request.args.get('streaming') == 'true' %}
-                    <img src="{{ url_for('detection.cctv_feed') }}" alt="CCTV Stream Feed">
+                    <img id="cctv_stream_img" src="{{ url_for('detection.cctv_feed') }}" alt="CCTV Stream Feed" style="width: 100%; height: auto; max-height: 520px; display: block; border-radius: 8px;">
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size: 50px; margin-bottom: 12px;">📹</div>
-                        <h5 class="text-white fw-bold">Camera Offline / Disconnected</h5>
-                        <p class="text-muted mb-3" style="font-size: 13px;">
-                            Enter an RTSP IP camera URL on the right to connect to your live surveillance stream.
+                    <div class="text-center py-5 text-light">
+                        <div style="font-size: 56px; margin-bottom: 12px;">📹</div>
+                        <h5 class="text-white fw-bold">Camera Offline / Standby</h5>
+                        <p class="text-muted mb-3" style="font-size: 13px; max-width: 460px; margin: 0 auto;">
+                            Enter your RTSP IP Camera stream URL or test credentials on the right to start live real-time crowd surveillance.
                         </p>
                     </div>
                 {% endif %}
             </div>
 
-            {% if request.args.get('streaming') == 'true' %}
-                <form method="POST" action="{{ url_for('detection.disconnect_cctv') }}">
-                    <button type="submit" class="btn btn-danger btn-sm">
-                        ⏹ Disconnect Camera
-                    </button>
-                </form>
-            {% endif %}
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                {% if request.args.get('streaming') == 'true' %}
+                    <form method="POST" action="{{ url_for('detection.disconnect_cctv') }}" class="d-inline">
+                        <button type="submit" class="btn btn-danger btn-sm fw-semibold">
+                            ⏹️ Disconnect CCTV
+                        </button>
+                    </form>
+                {% else %}
+                    <span class="text-muted small">Supports RTSP, HTTP, MJPEG, and ONVIF IP Cameras.</span>
+                {% endif %}
+                <small class="text-muted">
+                    AI Pipeline: <strong>YOLOv8 ➔ Soft-NMS ➔ Zero-Lag Threaded Stream ➔ Risk Engine</strong>
+                </small>
+            </div>
         </div>
     </div>
 
-    <!-- Connection Settings Column -->
+    <!-- Connection Settings & Telemetry Column -->
     <div class="col-lg-4">
+        <!-- Live AI Telemetry Card (Shown when streaming) -->
+        {% if request.args.get('streaming') == 'true' %}
+        <div class="dash-card mb-4">
+            <h5 class="fw-bold mb-3">⚡ Live AI Telemetry</h5>
+
+            <div class="mb-3">
+                <div class="card-lbl">Risk Classification</div>
+                <div class="mt-1" id="cctv_live_risk_badge">
+                    <span class="badge-risk risk-green">🟢 NORMAL (SAFE)</span>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-primary" id="cctv_live_people">0</div>
+                        <div class="card-lbl">People Count</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-danger" id="cctv_live_risk_score">0.00</div>
+                        <div class="card-lbl">Risk Score</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-info" id="cctv_live_speed">0.00</div>
+                        <div class="card-lbl">Crowd Speed</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 border rounded bg-light text-center">
+                        <div class="card-val text-warning" id="cctv_live_entropy">0.00</div>
+                        <div class="card-lbl">Motion Entropy</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-2 border rounded bg-light">
+                <div class="card-lbl mb-1">Surveillance Status</div>
+                <div class="small fw-semibold text-dark" id="cctv_live_summary">Monitoring active CCTV feed...</div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- RTSP Connection Card -->
         <div class="dash-card">
             <h5 class="fw-bold mb-3">⚙ Connect RTSP Camera</h5>
 
             <form method="POST" action="{{ url_for('detection.connect_cctv') }}">
                 <div class="mb-3">
-                    <label class="form-label">Camera Name</label>
-                    <input type="text" name="camera_name" class="form-control" placeholder="Main Entrance CCTV" required>
+                    <label class="form-label fw-semibold" style="font-size: 13px;">Camera Name</label>
+                    <input type="text" name="camera_name" class="form-control form-control-sm" placeholder="Main Entrance CCTV" required>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">RTSP Stream URL</label>
-                    <input type="text" name="rtsp_url" class="form-control" placeholder="rtsp://192.168.1.100:554/stream" required>
-                    <small class="text-muted" style="font-size: 11px;">Example: rtsp://username:password@ip:554/live</small>
+                    <label class="form-label fw-semibold" style="font-size: 13px;">RTSP Stream URL</label>
+                    <input type="text" name="rtsp_url" class="form-control form-control-sm" placeholder="rtsp://192.168.1.100:554/stream" required>
+                    <small class="text-muted" style="font-size: 11px;">Format: rtsp://username:password@ip:554/live</small>
                 </div>
 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="form-label">Username</label>
-                        <input type="text" name="username" class="form-control" placeholder="admin">
+                        <label class="form-label fw-semibold" style="font-size: 13px;">Username (Optional)</label>
+                        <input type="text" name="username" class="form-control form-control-sm" placeholder="admin">
                     </div>
                     <div class="col-6">
-                        <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="••••">
+                        <label class="form-label fw-semibold" style="font-size: 13px;">Password (Optional)</label>
+                        <input type="password" name="password" class="form-control form-control-sm" placeholder="••••">
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 mb-2">
-                    🔗 Connect Live Camera
+                <button type="submit" class="btn btn-primary w-100 fw-semibold mb-2">
+                    🔗 Connect Live CCTV
                 </button>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    // Live Telemetry Polling for CCTV Feed
+    const isCctvStreaming = "{{ request.args.get('streaming') }}" === "true";
+    if (isCctvStreaming) {
+        let lastTimestamp = performance.now();
+        let frameTicks = 0;
+
+        setInterval(async () => {
+            try {
+                const res = await fetch("{{ url_for('detection.cctv_telemetry') }}");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (document.getElementById('cctv_live_people')) {
+                        document.getElementById('cctv_live_people').innerText = data.people_count !== undefined ? data.people_count : 0;
+                        document.getElementById('cctv_live_risk_score').innerText = Number(data.risk_score || 0).toFixed(2);
+                        document.getElementById('cctv_live_speed').innerText = Number(data.relative_speed || 0).toFixed(2);
+                        document.getElementById('cctv_live_entropy').innerText = Number(data.motion_entropy || 0).toFixed(2);
+                        document.getElementById('cctv_live_summary').innerText = data.summary_message || "Monitoring live stream...";
+
+                        const badgeEl = document.getElementById('cctv_live_risk_badge');
+                        const level = data.risk_level || 'GREEN';
+                        if (badgeEl) {
+                            if (level === 'RED') {
+                                badgeEl.innerHTML = '<span class="badge-risk risk-red">🔴 CRITICAL ALERT</span>';
+                            } else if (level === 'YELLOW') {
+                                badgeEl.innerHTML = '<span class="badge-risk risk-yellow">🟡 WARNING</span>';
+                            } else {
+                                badgeEl.innerHTML = '<span class="badge-risk risk-green">🟢 NORMAL (SAFE)</span>';
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore background polling network glitches
+            }
+        }, 500);
+    }
+</script>
 {% endblock %}

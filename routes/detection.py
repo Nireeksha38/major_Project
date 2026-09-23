@@ -304,6 +304,13 @@ def process_webcam_frame():
     if not frame_data:
         return jsonify({"success": False, "error": "No frame data received"}), 400
 
+    frame_skip = data.get("frame_skip")
+    if frame_skip is not None:
+        try:
+            browser_webcam_processor.processor.frame_skip = max(1, int(frame_skip))
+        except Exception:
+            pass
+
     result = browser_webcam_processor.process_base64_frame(frame_data)
     return jsonify(result)
 

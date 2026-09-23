@@ -43,7 +43,7 @@ class VideoProcessor:
     Frame -> YOLOv8 -> Soft-NMS -> Deep SORT -> Optical Flow -> Entropy -> Speed -> Fall/Panic -> Risk -> Alerts -> HUD Rendering.
     """
     def __init__(self, frame_skip=None):
-        self.frame_skip = frame_skip if frame_skip is not None else Config.FRAME_SKIP
+        self.frame_skip = frame_skip if frame_skip is not None else getattr(Config, "FRAME_SKIP", 2)
         self.detector = YOLOv8Detector()
         self.tracker = DeepSORTTracker()
         self.flow_analyzer = OpticalFlowAnalyzer()
@@ -54,6 +54,12 @@ class VideoProcessor:
         self.risk_classifier = RiskClassifier()
         self.alert_manager = AlertManager()
         self.people_count_history = []
+        self.last_refined_boxes = np.empty((0, 4))
+        self.last_flow = None
+        self.last_magnitude = None
+        self.last_angle = None
+        self.last_motion_intensity = 0.0
+        self.last_motion_entropy = 0.0
 
     def reset(self):
         """Resets state for a new video stream."""
@@ -63,10 +69,18 @@ class VideoProcessor:
         self.fall_detector.reset()
         self.alert_manager.reset()
         self.people_count_history = []
+        self.last_refined_boxes = np.empty((0, 4))
+        self.last_flow = None
+        self.last_magnitude = None
+        self.last_angle = None
+        self.last_motion_intensity = 0.0
+        self.last_motion_entropy = 0.0
 
-    def process_frame(self, frame, frame_idx=0, session_id=None):
+    def process_frame(self, frame, frame_idx=0, session_id=None, force_detect=False):
         """
         Processes a single video frame through the full AI/ML pipeline.
+        Supports smart interval detection: executes heavy YOLOv8 deep inference on keyframes
+        and fast Kalman tracking on intermediate frames to maintain silky smooth FPS without lag.
         Returns:
             annotated_frame: Frame with HUD overlay
             telemetry: Dictionary containing real-time metrics
@@ -76,14 +90,24 @@ class VideoProcessor:
 
         orig_h, orig_w = frame.shape[:2]
 
-        # 1. Detection + Soft-NMS Refinement
-        refined_boxes, refined_scores, refined_classes, detections = self.detector.detect_and_refine(
-            frame,
-            use_soft_nms=True
-        )
+        # Determine if heavy YOLO detection should run on this frame
+        skip_interval = max(1, self.frame_skip)
+        is_detect_frame = force_detect or (skip_interval <= 1) or (frame_idx % skip_interval == 1) or (len(self.people_count_history) == 0)
 
-        # 2. Deep SORT Tracking
-        active_tracks = self.tracker.update(detections)
+        if is_detect_frame:
+            # 1. Full Detection + Soft-NMS Refinement
+            refined_boxes, refined_scores, refined_classes, detections = self.detector.detect_and_refine(
+                frame,
+                use_soft_nms=True
+            )
+            self.last_refined_boxes = refined_boxes
+            # 2. Deep SORT Tracking update with fresh detections
+            active_tracks = self.tracker.update(detections)
+        else:
+            # Intermediate frame: Fast Kalman Filter prediction step without deep inference
+            refined_boxes = self.last_refined_boxes
+            active_tracks = self.tracker.update(detections=None)
+
         raw_count = len(active_tracks) if len(active_tracks) > 0 else len(refined_boxes)
         
         # Temporal smoothing: use rolling median over recent 5 frames to eliminate flickering
@@ -95,11 +119,25 @@ class VideoProcessor:
         # 3. Crowd Density (normalized to expected capacity)
         density_score = min(1.0, people_count / 40.0)
 
-        # 4. Optical Flow & Motion Intensity
-        flow, magnitude, angle_deg, motion_intensity, flow_summary = self.flow_analyzer.compute_flow(frame)
+        # 4. Optical Flow & Motion Intensity (computed every frame or reused if needed)
+        try:
+            flow, magnitude, angle_deg, motion_intensity, flow_summary = self.flow_analyzer.compute_flow(frame)
+            self.last_flow = flow
+            self.last_magnitude = magnitude
+            self.last_angle = angle_deg
+            self.last_motion_intensity = motion_intensity
+        except Exception:
+            flow = self.last_flow
+            magnitude = self.last_magnitude
+            angle_deg = self.last_angle
+            motion_intensity = self.last_motion_intensity
 
         # 5. Directional Motion Entropy
-        motion_entropy, _ = self.entropy_analyzer.compute_entropy(angle_deg, magnitude)
+        if angle_deg is not None and magnitude is not None:
+            motion_entropy, _ = self.entropy_analyzer.compute_entropy(angle_deg, magnitude)
+            self.last_motion_entropy = motion_entropy
+        else:
+            motion_entropy = self.last_motion_entropy
 
         # 6. Crowd Speed
         relative_speed, avg_px_speed, max_px_speed, accel = self.speed_analyzer.compute_speed(active_tracks)

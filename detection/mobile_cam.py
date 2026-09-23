@@ -102,11 +102,84 @@ def verify_droidcam_connection(stream_url, timeout=3.5):
     return result["success"], result["working_url"], result["error"]
 
 
+class ThreadedDroidCamCapture:
+    """
+    Asynchronous threaded DroidCam capture reader.
+    Continuously pulls the newest frame from the phone's Wi-Fi stream in a daemon thread.
+    Completely eliminates Wi-Fi/HTTP frame queue buildup for real-time, zero-lag streaming.
+    """
+    def __init__(self, target_url):
+        candidates = _get_droidcam_candidates(target_url)
+        self.cap = None
+        self.active_working_url = ""
+        
+        for url in candidates:
+            try:
+                cap = cv2.VideoCapture(url)
+                if cap.isOpened():
+                    try:
+                        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    except Exception:
+                        pass
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None and test_frame.size > 0:
+                        self.cap = cap
+                        self.active_working_url = url
+                        break
+                    cap.release()
+            except Exception:
+                pass
+
+        self.grabbed = False
+        self.frame = None
+        self.is_running = False
+        self.lock = threading.Lock()
+        self.thread = None
+
+        if self.cap is not None and self.cap.isOpened():
+            self.grabbed, self.frame = self.cap.read()
+            self.is_running = True
+            self.thread = threading.Thread(target=self._update, daemon=True)
+            self.thread.start()
+
+    def _update(self):
+        while self.is_running and self.cap and self.cap.isOpened():
+            try:
+                grabbed, frame = self.cap.read()
+                if grabbed and frame is not None:
+                    with self.lock:
+                        self.grabbed = grabbed
+                        self.frame = frame
+                else:
+                    time.sleep(0.01)
+            except Exception:
+                break
+
+    def read(self):
+        with self.lock:
+            if self.frame is not None:
+                return self.grabbed, self.frame.copy()
+            return self.grabbed, None
+
+    def isOpened(self):
+        return self.cap is not None and self.cap.isOpened()
+
+    def release(self):
+        self.is_running = False
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join(timeout=0.4)
+        if self.cap is not None:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+
+
 class MobileCamStreamer:
     """
     Dedicated DroidCam Mobile Phone Camera Streamer.
     Streams live video from DroidCam over Wi-Fi, running real-time
-    YOLOv8 person detection, tracking, fall detection, and stampede risk analysis.
+    YOLOv8 person detection, tracking, fall detection, and stampede risk analysis with zero lag.
     """
     def __init__(self, stream_url=None):
         self.stream_url = stream_url.strip() if stream_url else ""
@@ -115,36 +188,18 @@ class MobileCamStreamer:
         self.status = "DISCONNECTED"
         self.last_telemetry = {}
         self.active_working_url = ""
-
-    def _open_capture(self):
-        """Tries DroidCam endpoints and returns the active VideoCapture."""
-        candidates = _get_droidcam_candidates(self.stream_url)
-        print(f"[DroidCam] Probing stream candidates for '{self.stream_url}': {candidates}")
-
-        for url in candidates:
-            try:
-                cap = cv2.VideoCapture(url)
-                if cap.isOpened():
-                    ret, frame = cap.read()
-                    if ret and frame is not None and frame.size > 0:
-                        self.active_working_url = url
-                        print(f"[DroidCam] Successfully connected to active stream: {url}")
-                        return cap
-                    cap.release()
-            except Exception as e:
-                print(f"[DroidCam] Candidate '{url}' failed: {e}")
-        return None
+        self._threaded_cap = None
 
     def start_stream(self, session_id=None):
-        """Yields MJPEG multipart frame stream for Flask Response."""
+        """Yields MJPEG multipart frame stream for Flask Response with zero Wi-Fi buffer delay."""
         self.is_running = True
         self.status = "CONNECTED"
         self.processor.reset()
         frame_idx = 0
 
-        cap = self._open_capture()
+        self._threaded_cap = ThreadedDroidCamCapture(self.stream_url)
 
-        if cap is None or not cap.isOpened():
+        if not self._threaded_cap.isOpened():
             self.status = "ERROR"
             err_frame = self._render_status_frame(
                 [
@@ -162,14 +217,14 @@ class MobileCamStreamer:
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
             return
 
+        self.active_working_url = self._threaded_cap.active_working_url
+
         try:
             while self.is_running:
-                ret, frame = cap.read()
+                ret, frame = self._threaded_cap.read()
                 if not ret or frame is None:
-                    time.sleep(0.04)
-                    ret, frame = cap.read()
-                    if not ret or frame is None:
-                        break
+                    time.sleep(0.01)
+                    continue
 
                 frame_idx += 1
                 h, w = frame.shape[:2]
@@ -177,7 +232,7 @@ class MobileCamStreamer:
                 target_h = int(h * (target_w / w)) if w > 0 else Config.TARGET_HEIGHT
                 small_frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
 
-                # Process Frame through full AI surveillance pipeline
+                # Process Frame through full AI surveillance pipeline (smart interval enabled)
                 annotated_frame, telemetry = self.processor.process_frame(
                     small_frame,
                     frame_idx=frame_idx,
@@ -194,8 +249,12 @@ class MobileCamStreamer:
                 _, buffer = cv2.imencode(".jpg", out_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 frame_bytes = buffer.tobytes()
 
-                yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
-                time.sleep(0.03)
+                try:
+                    yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                except GeneratorExit:
+                    break
+
+                time.sleep(0.02)
 
         except Exception as e:
             self.status = "ERROR"
@@ -203,11 +262,8 @@ class MobileCamStreamer:
         finally:
             self.is_running = False
             self.status = "DISCONNECTED"
-            if cap is not None:
-                try:
-                    cap.release()
-                except Exception:
-                    pass
+            if self._threaded_cap is not None:
+                self._threaded_cap.release()
 
     def _render_status_frame(self, lines, color):
         frame = np.zeros((480, 640, 3), dtype=np.uint8) + 20
@@ -223,3 +279,5 @@ class MobileCamStreamer:
     def stop(self):
         self.is_running = False
         self.status = "DISCONNECTED"
+        if self._threaded_cap is not None:
+            self._threaded_cap.release()

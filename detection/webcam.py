@@ -1,5 +1,6 @@
 import base64
 import subprocess
+import threading
 import time
 import cv2
 import numpy as np
@@ -73,11 +74,82 @@ def get_available_cameras():
     return cameras
 
 
+class ThreadedCameraCapture:
+    """
+    Asynchronous threaded camera capture reader.
+    Continuously pulls the latest frame from the hardware/stream into a single-frame buffer in a background thread.
+    Completely eliminates OpenCV's internal queue buffer buildup and provides zero-lag live video.
+    """
+    def __init__(self, index, backends=None):
+        if backends is None:
+            backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        self.cap = None
+        for backend in backends:
+            try:
+                cap = cv2.VideoCapture(index, backend)
+                if cap.isOpened():
+                    try:
+                        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    except Exception:
+                        pass
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None:
+                        self.cap = cap
+                        break
+                    cap.release()
+            except Exception:
+                pass
+
+        self.grabbed = False
+        self.frame = None
+        self.is_running = False
+        self.lock = threading.Lock()
+        self.thread = None
+
+        if self.cap is not None and self.cap.isOpened():
+            self.grabbed, self.frame = self.cap.read()
+            self.is_running = True
+            self.thread = threading.Thread(target=self._update, daemon=True)
+            self.thread.start()
+
+    def _update(self):
+        while self.is_running and self.cap and self.cap.isOpened():
+            try:
+                grabbed, frame = self.cap.read()
+                if grabbed and frame is not None:
+                    with self.lock:
+                        self.grabbed = grabbed
+                        self.frame = frame
+                else:
+                    time.sleep(0.01)
+            except Exception:
+                break
+
+    def read(self):
+        with self.lock:
+            if self.frame is not None:
+                return self.grabbed, self.frame.copy()
+            return self.grabbed, None
+
+    def isOpened(self):
+        return self.cap is not None and self.cap.isOpened()
+
+    def release(self):
+        self.is_running = False
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join(timeout=0.4)
+        if self.cap is not None:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+
+
 class WebcamStreamer:
     """
     Live Webcam surveillance stream handler supporting laptop built-in webcams and external USB webcams.
     Runs YOLOv8 + Soft-NMS + Deep SORT + Optical Flow + Risk Engine in real-time.
-    Yields MJPEG multipart frames for HTML video streaming.
+    Yields MJPEG multipart frames for HTML video streaming with zero frame lag.
     """
     def __init__(self, camera_index=0):
         try:
@@ -88,21 +160,7 @@ class WebcamStreamer:
         self.is_running = False
         self.last_telemetry = {}
         self.connection_status = "INITIALIZING"
-
-    def _open_camera(self, index):
-        """Attempts to open camera using multiple backends (DSHOW, MSMF, ANY)."""
-        backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
-        for backend in backends:
-            try:
-                cap = cv2.VideoCapture(index, backend)
-                if cap.isOpened():
-                    ret, test_frame = cap.read()
-                    if ret and test_frame is not None:
-                        return cap
-                    cap.release()
-            except Exception:
-                pass
-        return None
+        self._threaded_cap = None
 
     def _create_error_frame(self, title, message_lines):
         """Generates an informative diagnostic frame when camera access is blocked or disconnected."""
@@ -130,17 +188,17 @@ class WebcamStreamer:
 
     def generate_frames(self, session_id=None):
         """Generator function that yields JPEG encoded frames for Flask Response."""
-        cap = self._open_camera(self.camera_index)
+        self._threaded_cap = ThreadedCameraCapture(self.camera_index)
         
-        if cap is None:
+        if not self._threaded_cap.isOpened():
             # Try alternate camera index (if 0 failed, try 1; if 1 failed, try 0)
             alternate_index = 1 if self.camera_index == 0 else 0
-            alt_cap = self._open_camera(alternate_index)
-            if alt_cap is not None:
-                cap = alt_cap
+            alt_cap = ThreadedCameraCapture(alternate_index)
+            if alt_cap.isOpened():
+                self._threaded_cap = alt_cap
                 self.camera_index = alternate_index
 
-        if cap is None or not cap.isOpened():
+        if not self._threaded_cap.isOpened():
             self.connection_status = "CAMERA_UNAVAILABLE"
             err_bytes = self._create_error_frame(
                 f"CAMERA HARDWARE LOCKED / BLOCKED (Index {self.camera_index})",
@@ -165,9 +223,10 @@ class WebcamStreamer:
 
         try:
             while self.is_running:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+                ret, frame = self._threaded_cap.read()
+                if not ret or frame is None:
+                    time.sleep(0.01)
+                    continue
 
                 frame_idx += 1
                 # Resize for smooth laptop performance
@@ -176,7 +235,7 @@ class WebcamStreamer:
                 target_h = int(h * (target_w / w)) if w > 0 else Config.TARGET_HEIGHT
                 small_frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
 
-                # Process Frame with AI Pipeline
+                # Process Frame with AI Pipeline (with smart interval support)
                 annotated_frame, telemetry = self.processor.process_frame(
                     small_frame,
                     frame_idx=frame_idx,
@@ -190,16 +249,22 @@ class WebcamStreamer:
                 _, buffer = cv2.imencode(".jpg", out_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 frame_bytes = buffer.tobytes()
 
-                yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                try:
+                    yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                except GeneratorExit:
+                    break
 
-                # Throttle slightly to keep ~20-25 FPS
-                time.sleep(0.03)
+                # Sleep slightly to maintain steady ~25 FPS pacing
+                time.sleep(0.02)
         finally:
             self.is_running = False
-            cap.release()
+            if self._threaded_cap is not None:
+                self._threaded_cap.release()
 
     def stop(self):
         self.is_running = False
+        if self._threaded_cap is not None:
+            self._threaded_cap.release()
 
 
 class BrowserFrameProcessor:

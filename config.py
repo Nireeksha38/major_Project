@@ -47,9 +47,9 @@ class Config:
     _ml_best = os.path.join(BASE_DIR, "ml", "models", "best.pt")
     _default_model = _custom_best if os.path.exists(_custom_best) else (_ml_best if os.path.exists(_ml_best) else "yolov8n.pt")
     YOLO_MODEL_NAME = os.environ.get("YOLO_MODEL_NAME", _default_model)
-    YOLO_CONFIDENCE = float(os.environ.get("YOLO_CONFIDENCE", 0.35))
+    YOLO_CONFIDENCE = float(os.environ.get("YOLO_CONFIDENCE", 0.30))
     YOLO_PERSON_CLASS_ID = 0
-    YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", 480))
+    YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", 384))
     DEVICE = os.environ.get("DEVICE", "auto")  # 'cuda', 'cpu', or 'auto'
     FRAME_SKIP = int(os.environ.get("FRAME_SKIP", 2))  # 1 = process every frame, 2 = every 2nd frame
     TARGET_WIDTH = 640
@@ -58,8 +58,8 @@ class Config:
     # Soft-NMS Parameters
     SOFT_NMS_METHOD = os.environ.get("SOFT_NMS_METHOD", "gaussian")  # 'gaussian' or 'linear'
     SOFT_NMS_SIGMA = float(os.environ.get("SOFT_NMS_SIGMA", 0.5))
-    SOFT_NMS_IOU_THRESHOLD = float(os.environ.get("SOFT_NMS_IOU_THRESHOLD", 0.45))
-    SOFT_NMS_CONF_THRESHOLD = float(os.environ.get("SOFT_NMS_CONF_THRESHOLD", 0.35))
+    SOFT_NMS_IOU_THRESHOLD = float(os.environ.get("SOFT_NMS_IOU_THRESHOLD", 0.60))
+    SOFT_NMS_CONF_THRESHOLD = float(os.environ.get("SOFT_NMS_CONF_THRESHOLD", 0.30))
 
     # Deep SORT Tracking Parameters
     TRACKER_MAX_AGE = int(os.environ.get("TRACKER_MAX_AGE", 30))
