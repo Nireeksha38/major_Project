@@ -105,8 +105,11 @@ class VideoProcessor:
             active_tracks = self.tracker.update(detections)
         else:
             # Intermediate frame: Fast Kalman Filter prediction step without deep inference
-            refined_boxes = self.last_refined_boxes
             active_tracks = self.tracker.update(detections=None)
+            if active_tracks and len(active_tracks) > 0:
+                refined_boxes = np.array([t["bbox"] for t in active_tracks], dtype=np.float32)
+            else:
+                refined_boxes = self.last_refined_boxes
 
         raw_count = len(active_tracks) if len(active_tracks) > 0 else len(refined_boxes)
         
@@ -131,6 +134,7 @@ class VideoProcessor:
             magnitude = self.last_magnitude
             angle_deg = self.last_angle
             motion_intensity = self.last_motion_intensity
+            flow_summary = {"mean_magnitude": 0.0, "motion_ratio": 0.0, "normalized_intensity": motion_intensity}
 
         # 5. Directional Motion Entropy
         if angle_deg is not None and magnitude is not None:
@@ -139,8 +143,11 @@ class VideoProcessor:
         else:
             motion_entropy = self.last_motion_entropy
 
-        # 6. Crowd Speed
-        relative_speed, avg_px_speed, max_px_speed, accel = self.speed_analyzer.compute_speed(active_tracks)
+        # 6. Crowd Speed (fuses tracking displacement and optical flow field)
+        relative_speed, avg_px_speed, max_px_speed, accel = self.speed_analyzer.compute_speed(
+            active_tracks=active_tracks,
+            flow_summary=flow_summary
+        )
 
         # 7. Panic / Rush Detection (Temporal Window)
         panic_score, is_rush, is_panic, panic_event, panic_reason = self.panic_detector.update(

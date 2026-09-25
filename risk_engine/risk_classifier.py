@@ -27,48 +27,52 @@ class RiskClassifier:
 
         risk_score = float(max(0.0, min(1.0, weighted_score)))
 
-        # Direct priority overrides for emergency anomalies
+        # Priority overrides and non-linear risk escalation for emergency anomalies
         if is_panic:
-            # Active Stampede / Panic Movement
-            risk_score = max(risk_score, 0.78)
+            # Active Stampede / Panic Movement (Critical Level)
+            panic_boost = 0.78 + 0.18 * panic_score + 0.04 * min(1.0, density_score)
+            risk_score = max(risk_score, min(0.99, panic_boost))
         elif is_rush:
-            # Active Crowd Rush / Speed Surge
-            risk_score = max(risk_score, 0.55)
+            # Active Crowd Rush / Speed Surge (Warning Level)
+            rush_boost = 0.52 + 0.16 * max(relative_speed, motion_intensity)
+            risk_score = max(risk_score, min(0.70, rush_boost))
 
         if fall_detected and num_falls > 0:
             # Fallen person in crowd presents immediate trampling hazard
-            if people_count >= 8 or density_score >= 0.35:
-                risk_score = max(risk_score, 0.80)  # Critical RED
+            if people_count >= 6 or density_score >= 0.25:
+                risk_score = max(risk_score, 0.82)  # Critical RED Trample Threat
             else:
-                risk_score = max(risk_score, 0.55)  # Warning YELLOW
+                risk_score = max(risk_score, 0.55)  # Warning YELLOW Fall Event
 
         # Safety guarantee: If no fall, no rush, no panic, and not severe overcrowding, enforce GREEN
-        if not fall_detected and not is_rush and not is_panic and density_score < 0.85:
+        if not fall_detected and not is_rush and not is_panic and density_score < 0.80 and motion_intensity < 0.35:
             risk_score = min(risk_score, self.t.GREEN_MAX - 0.05)
 
         # Classify Level
         if risk_score <= self.t.GREEN_MAX:
             risk_level = "GREEN"
             status_title = "NORMAL"
-            summary_message = "Normal crowd flow. No abnormal behavior, rush, or fall detected."
+            summary_message = "Normal crowd flow. Orderly movement detected."
         elif risk_score <= self.t.YELLOW_MAX:
             risk_level = "YELLOW"
             status_title = "WARNING"
             if fall_detected:
-                summary_message = "Warning: possible fallen person in low-density area."
+                summary_message = f"Warning: {num_falls} fallen person(s) detected in monitored area."
             elif is_rush:
-                summary_message = "Warning: sudden crowd rush / elevated movement detected."
+                summary_message = "Warning: sudden crowd rush / elevated velocity surge detected."
+            elif density_score >= 0.65:
+                summary_message = f"Warning: elevated crowd density ({people_count} people detected)."
             else:
-                summary_message = "Warning: elevated crowd density."
+                summary_message = "Warning: elevated crowd movement activity."
         else:
             risk_level = "RED"
             status_title = "CRITICAL"
-            if fall_detected and (people_count >= 8 or density_score >= 0.35):
-                summary_message = "Critical: fallen person detected in crowded area! Trample risk!"
+            if fall_detected and (people_count >= 6 or density_score >= 0.25):
+                summary_message = f"Critical: fallen person detected in crowd! High trample hazard!"
             elif is_panic:
-                summary_message = "Critical: high-risk chaotic stampede movement detected!"
+                summary_message = "Critical: chaotic crowd panic and stampede risk detected!"
             else:
-                summary_message = "Critical: severe overcrowding and uncontrolled compression!"
+                summary_message = f"Critical: dangerous crowd congestion ({people_count} people)!"
 
         # Identify dominant risk factor
         factors = {
@@ -96,3 +100,4 @@ class RiskClassifier:
                 "fall": round(fall_score, 3),
             }
         }
+
