@@ -332,28 +332,6 @@
         </div>
     </div>
 
-    <!-- Benchmark Dataset & Performance Strip -->
-    <div class="stats-grid">
-        <div class="row g-3">
-            <div class="col-6 col-md-3 stat-item border-end">
-                <div class="stat-num">106</div>
-                <div class="stat-label">Benchmark Videos</div>
-            </div>
-            <div class="col-6 col-md-3 stat-item border-end">
-                <div class="stat-num">120</div>
-                <div class="stat-label">Crowd Test Images</div>
-            </div>
-            <div class="col-6 col-md-3 stat-item border-end">
-                <div class="stat-num">84.9%</div>
-                <div class="stat-label">Trained mAP50</div>
-            </div>
-            <div class="col-6 col-md-3 stat-item">
-                <div class="stat-num">&lt; 50ms</div>
-                <div class="stat-label">Inference Latency</div>
-            </div>
-        </div>
-    </div>
-
     <!-- Core Pipeline Cards -->
     <div class="mb-5">
         <div class="text-center mb-4">
@@ -363,42 +341,30 @@
 
         <div class="row g-4">
             <div class="col-md-6 col-lg-3">
-                <div class="feature-card">
-                    <div class="feature-icon-box">👁️</div>
-                    <h4 class="feature-title">Person Detection</h4>
-                    <p class="feature-text">
-                        Fine-tuned YOLOv8 model paired with Gaussian Soft-NMS to accurately detect dense, overlapping pedestrians without bounding-box suppression.
-                    </p>
+                <div class="feature-card text-center">
+                    <div class="feature-icon-box mx-auto">👁️</div>
+                    <h4 class="feature-title mb-0">Person Detection</h4>
                 </div>
             </div>
 
             <div class="col-md-6 col-lg-3">
-                <div class="feature-card">
-                    <div class="feature-icon-box">🎯</div>
-                    <h4 class="feature-title">Movement Tracking</h4>
-                    <p class="feature-text">
-                        Deep SORT tracking with Kalman filtering to maintain continuous individual IDs, trajectories, and instantaneous velocity estimations.
-                    </p>
+                <div class="feature-card text-center">
+                    <div class="feature-icon-box mx-auto">🎯</div>
+                    <h4 class="feature-title mb-0">Movement Tracking</h4>
                 </div>
             </div>
 
             <div class="col-md-6 col-lg-3">
-                <div class="feature-card">
-                    <div class="feature-icon-box">🌊</div>
-                    <h4 class="feature-title">Flow & Entropy</h4>
-                    <p class="feature-text">
-                        Gunner Farneback dense optical flow and Shannon directional entropy calculation to identify chaotic multi-directional stampede panic waves.
-                    </p>
+                <div class="feature-card text-center">
+                    <div class="feature-icon-box mx-auto">🌊</div>
+                    <h4 class="feature-title mb-0">Flow & Entropy</h4>
                 </div>
             </div>
 
             <div class="col-md-6 col-lg-3">
-                <div class="feature-card">
-                    <div class="feature-icon-box">⚠️</div>
-                    <h4 class="feature-title">Fall & Trample Alert</h4>
-                    <p class="feature-text">
-                        Aspect-ratio geometry and sudden height drop velocity analysis to immediately flag fallen persons on the ground to prevent trampling.
-                    </p>
+                <div class="feature-card text-center">
+                    <div class="feature-icon-box mx-auto">⚠️</div>
+                    <h4 class="feature-title mb-0">Fall & Trample Alert</h4>
                 </div>
             </div>
         </div>

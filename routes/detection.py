@@ -121,10 +121,13 @@ def video_feed(filename):
         except Exception:
             pass
 
+    session = DetectionSession.query.filter_by(source_name=safe_name).order_by(DetectionSession.id.desc()).first()
+    session_id = session.id if session else None
+
     streamer = VideoFileStreamer(video_path)
     active_video_streamers[safe_name] = streamer
     return Response(
-        streamer.generate_frames(loop=True),
+        streamer.generate_frames(loop=True, session_id=session_id),
         mimetype="multipart/x-mixed-replace; boundary=frame"
     )
 

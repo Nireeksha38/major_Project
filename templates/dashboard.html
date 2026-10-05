@@ -7,7 +7,7 @@
 <!-- Top Metrics Cards Row -->
 <div class="row g-4 mb-4">
     <!-- Risk Level Card -->
-    <div class="col-xl-3 col-md-6">
+    <div class="col-md-4">
         <div class="dash-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -29,49 +29,21 @@
     </div>
 
     <!-- People Count Card -->
-    <div class="col-xl-2 col-md-6">
+    <div class="col-md-4">
         <div class="dash-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="card-lbl">People Count</div>
+                    <div class="card-lbl">Monitored People Count</div>
                     <div class="card-val text-primary" id="val_people">{{ current_people }}</div>
                 </div>
                 <div class="card-icon">👥</div>
             </div>
-            <div class="text-muted mt-3" style="font-size: 12px;">YOLOv8 + Soft-NMS</div>
-        </div>
-    </div>
-
-    <!-- Relative Crowd Speed Card -->
-    <div class="col-xl-2 col-md-6">
-        <div class="dash-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="card-lbl">Relative Speed</div>
-                    <div class="card-val text-info" id="val_speed">{{ current_speed }}</div>
-                </div>
-                <div class="card-icon">⚡</div>
-            </div>
-            <div class="text-muted mt-3" style="font-size: 12px;">Deep SORT Trajectory</div>
-        </div>
-    </div>
-
-    <!-- Motion Entropy Card -->
-    <div class="col-xl-2 col-md-6">
-        <div class="dash-card">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="card-lbl">Motion Entropy</div>
-                    <div class="card-val text-warning" id="val_entropy">{{ current_entropy }}</div>
-                </div>
-                <div class="card-icon">🌀</div>
-            </div>
-            <div class="text-muted mt-3" style="font-size: 12px;">Farneback Directional</div>
+            <div class="text-muted mt-3" style="font-size: 12px;">YOLOv8 + Gaussian Soft-NMS</div>
         </div>
     </div>
 
     <!-- Active Alerts Card -->
-    <div class="col-xl-3 col-md-6">
+    <div class="col-md-4">
         <div class="dash-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -94,7 +66,6 @@
                 <h5 class="fw-bold mb-0">📹 Live Feed Monitor</h5>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('detection.webcam_page') }}" class="btn btn-sm btn-outline-primary">💻 Laptop Webcam</a>
-                    <a href="{{ url_for('detection.cctv_page') }}" class="btn btn-sm btn-outline-success">📡 Live CCTV</a>
                     <a href="{{ url_for('detection.upload_video') }}" class="btn btn-sm btn-primary">📹 Process Video</a>
                 </div>
             </div>
@@ -109,7 +80,7 @@
                         <div style="font-size: 50px; margin-bottom: 15px;">🎥</div>
                         <h5 class="text-white fw-bold">Live AI Surveillance Ready</h5>
                         <p class="text-muted mb-4" style="max-width: 480px; margin: 0 auto; font-size: 13px;">
-                            Launch real-time surveillance via laptop webcam, connect to an RTSP IP camera, or upload a recorded video sequence to run the 10-stage AI detection pipeline.
+                            Launch real-time surveillance via laptop webcam, connect to a mobile camera, or upload a recorded video sequence to run the AI detection pipeline.
                         </p>
                         <div class="d-flex justify-content-center gap-3">
                             <a href="{{ url_for('detection.webcam_page') }}" class="btn btn-primary px-4">Start Webcam Stream</a>
@@ -142,17 +113,6 @@
                         </div>
                     </div>
                     <span class="badge bg-primary">Online</span>
-                </a>
-
-                <a href="{{ url_for('detection.cctv_page') }}" class="btn btn-outline-success text-start py-2 d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2">
-                        <span>📹</span>
-                        <div>
-                            <div class="fw-bold" style="font-size: 13px;">IP CCTV Surveillance</div>
-                            <small class="text-muted" style="font-size: 11px;">RTSP / ONVIF Network Camera</small>
-                        </div>
-                    </div>
-                    <span class="badge bg-success">Ready</span>
                 </a>
 
                 <a href="{{ url_for('detection.upload_video') }}" class="btn btn-outline-secondary text-start py-2 d-flex align-items-center justify-content-between">

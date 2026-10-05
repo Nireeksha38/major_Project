@@ -314,9 +314,10 @@ class VideoProcessor:
 
     def quick_init_video(self, input_video_path, user_id=None):
         """
-        Instant initialization of uploaded video (< 0.05 sec).
-        Reads video metadata, registers session in DB, and returns immediately
-        so the live AI surveillance stream begins playing without delay.
+        Fast initialization of uploaded video with keyframe crowd & risk analysis.
+        Reads video metadata, samples representative keyframes through the AI detection pipeline
+        to determine the actual maximum people count and true peak risk level, registers the session
+        in the DB, and returns immediately so the live surveillance stream plays smoothly.
         """
         if not os.path.exists(input_video_path):
             raise FileNotFoundError(f"Input video not found: {input_video_path}")
@@ -337,23 +338,66 @@ class VideoProcessor:
         preview_folder = os.path.join(Config.UPLOAD_FOLDER_FRAMES, f"prev_{base_name}")
         os.makedirs(preview_folder, exist_ok=True)
 
-        # Grab first frame thumbnail
+        target_w = min(width, Config.TARGET_WIDTH) if width > 0 else Config.TARGET_WIDTH
+        target_h = int(height * (target_w / width)) if width > 0 else Config.TARGET_HEIGHT
+
+        # Sample 6 to 10 representative keyframe positions across the video
         preview_frames = []
         peak_frame_rel = None
-        ret, frame = cap.read()
-        if ret and frame is not None:
-            target_w = min(width, Config.TARGET_WIDTH)
-            target_h = int(height * (target_w / width)) if width > 0 else Config.TARGET_HEIGHT
+        max_people = 0
+        max_risk_score = 0.0
+        peak_risk_level = "GREEN"
+        peak_annotated_img = None
+
+        if total_frames > 0:
+            num_samples = min(8, max(3, total_frames // 10))
+            sample_indices = sorted(list(set(int(idx) for idx in np.linspace(0, total_frames - 1, num_samples))))
+        else:
+            sample_indices = [0]
+
+        self.reset()
+        for idx in sample_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                continue
+
             small_frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
-            prev_file = "f_00001.jpg"
+            annotated_frame, telemetry = self.process_frame(small_frame, frame_idx=idx + 1, force_detect=True)
+
+            cur_people = _as_int(telemetry.get("people_count", 0))
+            cur_risk = _as_float(telemetry.get("risk_score", 0.0))
+            cur_risk_level = _as_str(telemetry.get("risk_level", "GREEN"), "GREEN")
+
+            if cur_people > max_people:
+                max_people = cur_people
+
+            # Prioritize highest risk score or critical risk level
+            if cur_risk >= max_risk_score or (cur_risk_level == "RED" and peak_risk_level != "RED") or (cur_risk_level == "YELLOW" and peak_risk_level == "GREEN"):
+                max_risk_score = cur_risk
+                peak_risk_level = cur_risk_level
+                if annotated_frame is not None:
+                    peak_annotated_img = annotated_frame.copy()
+
+            # Save preview frame
+            prev_file = f"f_{idx+1:05d}.jpg"
             prev_path = os.path.join(preview_folder, prev_file)
-            cv2.imwrite(prev_path, small_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            img_to_save = annotated_frame if annotated_frame is not None else small_frame
+            cv2.imwrite(prev_path, img_to_save, [cv2.IMWRITE_JPEG_QUALITY, 80])
             rel_prev = os.path.relpath(prev_path, os.path.abspath(os.path.join(Config.BASE_DIR, "static"))).replace("\\", "/")
             preview_frames.append(rel_prev)
-            peak_frame_rel = rel_prev
+
         cap.release()
 
-        # Initialize session in DB
+        # Save peak frame if available
+        if peak_annotated_img is not None:
+            peak_path = os.path.join(preview_folder, "peak_risk_moment.jpg")
+            cv2.imwrite(peak_path, peak_annotated_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            peak_frame_rel = os.path.relpath(peak_path, os.path.abspath(os.path.join(Config.BASE_DIR, "static"))).replace("\\", "/")
+        elif preview_frames:
+            peak_frame_rel = preview_frames[0]
+
+        # Initialize session in DB with accurate max_people and peak risk level
         session_id = None
         start_dt = datetime.now(timezone.utc).replace(tzinfo=None)
         try:
@@ -362,9 +406,9 @@ class VideoProcessor:
                 source_type="video",
                 source_name=filename,
                 start_time=start_dt,
-                maximum_people=0,
-                maximum_risk="GREEN",
-                max_risk_score=0.0,
+                maximum_people=max_people,
+                maximum_risk=peak_risk_level,
+                max_risk_score=round(max_risk_score, 3),
                 status="running",
                 total_frames=total_frames,
                 duration=duration_sec
@@ -383,9 +427,9 @@ class VideoProcessor:
             "source_name": filename,
             "total_frames": total_frames,
             "duration": duration_sec,
-            "max_people": 0,
-            "peak_risk_level": "GREEN",
-            "max_risk_score": 0.0,
+            "max_people": max_people,
+            "peak_risk_level": peak_risk_level,
+            "max_risk_score": round(max_risk_score, 3),
             "processed_video_path": None,
             "preview_frames": preview_frames,
             "peak_frame": peak_frame_rel,

@@ -47,11 +47,6 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('detection.cctv_page') }}" class="{% if request.endpoint == 'detection.cctv_page' %}active{% endif %}">
-                    <span>📡</span> CCTV Stream
-                </a>
-            </li>
-            <li>
                 <a href="{{ url_for('detection.mobile_cam_page') }}" class="{% if request.endpoint == 'detection.mobile_cam_page' %}active{% endif %}">
                     <span>📱</span> DroidCam / Mobile
                 </a>

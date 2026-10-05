@@ -102,15 +102,6 @@
                             <span class="spinner-grow spinner-grow-sm text-info me-1" style="width: 8px; height: 8px;"></span> AI Inference Active
                         </div>
                     </div>
-
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <small class="text-muted">
-                            AI Pipeline: <strong>YOLOv8 ➔ Soft-NMS ➔ Deep SORT ➔ Optical Flow ➔ Risk Engine</strong>
-                        </small>
-                        <span class="badge bg-light text-dark border" id="browser_active_label">
-                            Mode: In-Browser WebRTC Capture
-                        </span>
-                    </div>
                 </div>
 
                 <!-- ================= BACKEND OPENCV HARDWARE MODE ================= -->
@@ -152,80 +143,8 @@
                              alt="Backend OpenCV Live Feed" 
                              style="width: 100%; height: auto; max-height: 520px; display: block; border-radius: 8px;">
                     </div>
-
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <small class="text-muted">
-                            Backend Pipeline: <strong>OpenCV DirectShow ➔ YOLOv8 ➔ Real-Time Risk Engine</strong>
-                        </small>
-                        <span class="badge bg-light text-dark border" id="backend_active_label">
-                            Hardware Index: {{ selected_index }}
-                        </span>
-                    </div>
                 </div>
 
-            </div>
-        </div>
-
-        <!-- Camera Troubleshooting & Help Guide -->
-        <div class="dash-card mt-3">
-            <div class="d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#cameraTroubleshootCollapse" aria-expanded="true">
-                <h6 class="fw-bold mb-0 text-primary">
-                    🛠️ Camera Troubleshooting & Privacy Permissions Guide
-                </h6>
-                <span class="text-muted small">Click to toggle tips ▼</span>
-            </div>
-
-            <div class="collapse show mt-3" id="cameraTroubleshootCollapse">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="p-3 border rounded bg-light h-100">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">1. Browser Camera Permission (Top Recommended)</div>
-                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
-                                When clicking <strong>Start Camera</strong> in Browser WebCam mode:
-                            </p>
-                            <ul class="text-muted mb-0 ps-3" style="font-size: 12px;">
-                                <li>Click <strong>"Allow"</strong> when the browser prompts for camera access.</li>
-                                <li>If blocked, click the 🔒 / 📷 icon in your browser URL bar and set Camera to <strong>Allow</strong>.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="p-3 border rounded bg-light h-100">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">2. Background App Conflicts (Teams, Zoom, Meet)</div>
-                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
-                                Webcams can only be accessed by one application at a time:
-                            </p>
-                            <ul class="text-muted mb-0 ps-3" style="font-size: 12px;">
-                                <li>Close <strong>Microsoft Teams</strong>, <strong>Zoom</strong>, <strong>Discord</strong>, or <strong>OBS</strong>.</li>
-                                <li>Close any other browser tabs using the webcam.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="p-3 border rounded bg-light h-100">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">3. Windows 10/11 Privacy Settings</div>
-                            <p class="text-muted mb-1" style="font-size: 12px; line-height: 1.5;">
-                                To enable system-wide camera access:
-                            </p>
-                            <ol class="text-muted mb-0 ps-3" style="font-size: 12px;">
-                                <li>Press <code>Win + I</code> ➔ <strong>Privacy & Security ➔ Camera</strong>.</li>
-                                <li>Turn <strong>Camera Access</strong> <span class="badge bg-success">ON</span>.</li>
-                                <li>Ensure <strong>"Let desktop apps access your camera"</strong> is <span class="badge bg-success">ON</span>.</li>
-                            </ol>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="p-3 border rounded bg-light h-100">
-                            <div class="fw-bold text-dark mb-1" style="font-size: 13px;">4. Multi-Camera & Physical Privacy Slider</div>
-                            <p class="text-muted mb-0" style="font-size: 12px; line-height: 1.5;">
-                                Check if your laptop has a sliding camera privacy cover or a mute key (like <code>Fn + F10</code>). You can switch between your laptop built-in camera and external USB camera using the dropdown.
-                            </p>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

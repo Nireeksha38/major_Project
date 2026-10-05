@@ -42,6 +42,9 @@ class VideoFileStreamer:
 
         self.processor.reset()
         self.is_running = True
+        max_people_seen = 0
+        max_risk_score_seen = 0.0
+        peak_risk_seen = "GREEN"
 
         while self.is_running:
             cap = cv2.VideoCapture(self.video_path)
@@ -80,6 +83,46 @@ class VideoFileStreamer:
                     )
                     if isinstance(telemetry, dict) and len(telemetry) > 0:
                         self.last_telemetry = telemetry
+                        
+                        # Real-time session database sync for history & dashboard accuracy
+                        if session_id:
+                            cur_p = int(telemetry.get("people_count", 0))
+                            cur_risk_lvl = str(telemetry.get("risk_level", "GREEN"))
+                            cur_risk_sc = float(telemetry.get("risk_score", 0.0))
+                            
+                            has_new_peak = False
+                            if cur_p > max_people_seen:
+                                max_people_seen = cur_p
+                                has_new_peak = True
+                            if cur_risk_sc > max_risk_score_seen:
+                                max_risk_score_seen = cur_risk_sc
+                                has_new_peak = True
+                            if cur_risk_lvl == "RED" and peak_risk_seen != "RED":
+                                peak_risk_seen = "RED"
+                                has_new_peak = True
+                            elif cur_risk_lvl == "YELLOW" and peak_risk_seen == "GREEN":
+                                peak_risk_seen = "YELLOW"
+                                has_new_peak = True
+                                
+                            if has_new_peak or (frame_idx % 30 == 0):
+                                try:
+                                    from database.database import db
+                                    from models.detection_session import DetectionSession
+                                    db_s = db.session.get(DetectionSession, session_id)
+                                    if db_s:
+                                        if max_people_seen > (db_s.maximum_people or 0):
+                                            db_s.maximum_people = max_people_seen
+                                        if max_risk_score_seen > (db_s.max_risk_score or 0.0):
+                                            db_s.max_risk_score = round(max_risk_score_seen, 3)
+                                        if peak_risk_seen == "RED" or (peak_risk_seen == "YELLOW" and db_s.maximum_risk != "RED"):
+                                            db_s.maximum_risk = peak_risk_seen
+                                        db.session.commit()
+                                except Exception:
+                                    try:
+                                        from database.database import db
+                                        db.session.rollback()
+                                    except Exception:
+                                        pass
 
                     out_img = annotated_frame if isinstance(annotated_frame, np.ndarray) else small_frame
 

@@ -34,8 +34,8 @@ class ImageProcessor:
         filename = os.path.basename(image_path)
         h, w = image.shape[:2]
 
-        # Optimize resolution for fast CPU inference (limit max dimension to 960px)
-        max_dim = 960
+        # Preserve high resolution for sharp crowd detail across distant and occluded people
+        max_dim = 1600
         if max(h, w) > max_dim:
             scale = max_dim / float(max(h, w))
             new_w = int(w * scale)
@@ -43,11 +43,12 @@ class ImageProcessor:
             image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
             h, w = new_h, new_w
 
-        # Run Detection + Soft-NMS + Duplicate suppression
-        boxes, scores, classes, detections = self.detector.detect_and_refine(
+        # Run Adaptive High-Resolution Crowd Detection + Gaussian Soft-NMS
+        boxes, scores, classes, detections = self.detector.detect_crowd_image(
             image,
-            use_soft_nms=True,
-            conf_thresh=Config.YOLO_CONFIDENCE
+            conf_thresh=0.16,
+            imgsz=800,
+            use_tiling=True
         )
 
         people_count = len(boxes)
