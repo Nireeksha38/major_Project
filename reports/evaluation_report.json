@@ -16,5 +16,16 @@
         "standard_nms_map50": 0.908,
         "soft_nms_gaussian_map50": 0.954,
         "relative_gain_dense_crowds": "+4.6%"
+    },
+    "fall_and_abnormal_behavior_model": {
+        "model_file": "fall_abnormal_classifier.joblib",
+        "accuracy": 0.9983,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "roc_auc_score": 1.0,
+        "dataset_videos_count": 109,
+        "dataset_images_count": 311,
+        "cctv_fall_images_count": 111
     }
 }

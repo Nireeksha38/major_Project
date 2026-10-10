@@ -158,11 +158,13 @@ class VideoProcessor:
             density_score=density_score
         )
 
-        # 8. Fall Detection
+        # 8. Fall Detection (ML-Ensemble + Temporal Kinematics)
         fall_detected, num_falls, fall_details, fall_score = self.fall_detector.update(
             active_tracks,
             frame_width=orig_w,
-            frame_height=orig_h
+            frame_height=orig_h,
+            optical_flow_motion=motion_intensity,
+            motion_entropy=motion_entropy
         )
 
         # 9. Risk Classification
