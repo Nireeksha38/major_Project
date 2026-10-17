@@ -170,11 +170,6 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### 🔑 Demo Account Credentials
-- **Username / Email**: `demo` (or `demo@example.com`)
-- **Password**: `Demo@123`
-
----
 
 ## 🧠 6. Machine Learning Pipeline & Training
 
