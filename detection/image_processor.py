@@ -1,8 +1,6 @@
 import os
 import cv2
 import time
-import joblib
-import numpy as np
 from datetime import datetime, timezone
 from config import Config
 from detection.detector import YOLOv8Detector
@@ -12,28 +10,12 @@ from models.detection_session import DetectionSession
 
 class ImageProcessor:
     """
-    Handles single image processing: YOLOv8 person detection + Soft-NMS filtering
-    + ML Fall and Abnormal Posture Detection.
+    Handles single image processing: YOLOv8 person detection + Soft-NMS filtering.
     Draws bounding boxes and confidence tags.
     Explicitly notifies that motion analysis requires video temporal input.
     """
     def __init__(self):
         self.detector = YOLOv8Detector()
-        self.ml_classifier = None
-        self._load_ml_model()
-
-    def _load_ml_model(self):
-        for p in [
-            os.path.join(Config.BASE_DIR, "ml", "models", "fall_abnormal_classifier.joblib"),
-            os.path.join(Config.BASE_DIR, "models", "weights", "fall_abnormal_classifier.joblib"),
-            "ml/models/fall_abnormal_classifier.joblib"
-        ]:
-            if os.path.exists(p):
-                try:
-                    self.ml_classifier = joblib.load(p)
-                    break
-                except Exception:
-                    pass
 
     def process_image(self, image_path, user_id=None):
         """
@@ -52,8 +34,8 @@ class ImageProcessor:
         filename = os.path.basename(image_path)
         h, w = image.shape[:2]
 
-        # Preserve high resolution for sharp crowd detail across distant and occluded people
-        max_dim = 1600
+        # Optimize resolution for fast CPU inference (limit max dimension to 960px)
+        max_dim = 960
         if max(h, w) > max_dim:
             scale = max_dim / float(max(h, w))
             new_w = int(w * scale)
@@ -61,53 +43,26 @@ class ImageProcessor:
             image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
             h, w = new_h, new_w
 
-        # Run Adaptive High-Resolution Crowd Detection + Gaussian Soft-NMS
-        boxes, scores, classes, detections = self.detector.detect_crowd_image(
+        # Run Detection + Soft-NMS + Duplicate suppression
+        boxes, scores, classes, detections = self.detector.detect_and_refine(
             image,
-            conf_thresh=0.16,
-            imgsz=800,
-            use_tiling=True
+            use_soft_nms=True,
+            conf_thresh=Config.YOLO_CONFIDENCE
         )
 
         people_count = len(boxes)
         # Normalized static density (people per estimated visible area)
         density_score = min(1.0, people_count / 50.0)
 
-        # Analyze individual poses for fallen/horizontal orientation (ML + Geometry)
+        # Analyze individual poses for fallen/horizontal orientation
         prone_indices = []
         for i, box in enumerate(boxes):
             x1, y1, x2, y2 = map(int, box)
             bw = max(1, x2 - x1)
             bh = max(1, y2 - y1)
-            aspect_ratio = bw / float(bh)
+            aspect_ratio = bw / bh
             is_near_edge = (x1 <= 5 or y1 <= 5 or x2 >= w - 5 or y2 >= h - 5)
-            ground_prox = float(y2) / float(max(1, h))
-
-            is_prone = False
-            # Check 1: Machine Learning Model Inference
-            if self.ml_classifier is not None and not is_near_edge:
-                try:
-                    feat = np.array([[
-                        aspect_ratio,
-                        bh / float(bw),
-                        bh / float(h),
-                        bw / float(w),
-                        (bw * bh) / float(w * h),
-                        0.0, 0.0, 0.0, 0.0,
-                        ground_prox, 0.0, 0.0
-                    ]], dtype=np.float32)
-                    probs = self.ml_classifier.predict_proba(feat)[0]
-                    if probs[1] >= 0.45:
-                        is_prone = True
-                except Exception:
-                    pass
-
-            # Check 2: Physical posture rule
-            if not is_prone and not is_near_edge:
-                if aspect_ratio >= 1.38 and ground_prox >= 0.40:
-                    is_prone = True
-
-            if is_prone:
+            if aspect_ratio >= 1.45 and not is_near_edge:
                 prone_indices.append(i)
 
         fallen_count = len(prone_indices)

@@ -37,11 +37,6 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('detection.upload_image') }}" class="{% if request.endpoint == 'detection.upload_image' %}active{% endif %}">
-                    <span>🖼</span> Upload Image
-                </a>
-            </li>
-            <li>
                 <a href="{{ url_for('detection.webcam_page') }}" class="{% if request.endpoint == 'detection.webcam_page' %}active{% endif %}">
                     <span>💻</span> Live Webcam
                 </a>

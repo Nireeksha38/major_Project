@@ -39,3 +39,4 @@ videos/
 # DLLs & temporary files
 openh264-*.dll
 *.tmp
+scratch/
